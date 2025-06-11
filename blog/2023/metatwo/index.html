@@ -149,7 +149,7 @@
 </div>
 <p><a href="https://app.hackthebox.com/machines/MetaTwo" target="_blank" rel="noopener noreferrer">MetaTwo Hack The Box</a></p>
 
-<p>In MetaTwo we first find a SQLi vulnerability.  We use the SQLi vulnerability to gain credentials to a wordpress admin dashboard.  We then make use of a an XXE vulnerability to read <code class="language-plaintext highlighter-rouge">wp_config.php</code> and obtain the credentials to the FTP server.  From the FTP server we obtain the credentials of the user.  Once logged in as the user we discover a command password manager and the private key the PW manager uses for encryption.  We are able to brut force the private key’s password and use it to obtain root’s password. Remove</p>
+<p>In MetaTwo we first find a SQLi vulnerability.  We use the SQLi vulnerability to gain credentials to a wordpress admin dashboard.  We then make use of a an XXE vulnerability to read <code class="language-plaintext highlighter-rouge">wp_config.php</code> and obtain the credentials to the FTP server.  From the FTP server we obtain the credentials of the user.  Once logged in as the user we discover a command password manager and the private key the PW manager uses for encryption.  We are able to brut force the private key’s password and use it to obtain root’s password.</p>
 
 <h2 id="port-scanning">Port Scanning</h2>
 
