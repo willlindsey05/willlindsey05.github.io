@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url>
+<loc>https://blog.anotherplacein.com/blog/2023/metatwo/</loc>
+<lastmod>2023-04-28T15:09:00+00:00</lastmod>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/blog/2023/soccer/</loc>
+<lastmod>2023-06-06T15:09:00+00:00</lastmod>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/</loc>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/news/</loc>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/blog/tag/hack-the-box/</loc>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/blog/tag/easy/</loc>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/blog/category/sqli/</loc>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/blog/category/cve/</loc>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/blog/category/wordpress/</loc>
+</url>
+<url>
+<loc>https://blog.anotherplacein.com/blog/2023/</loc>
+</url>
+</urlset>

