@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="https://blog.anotherplacein.com/feed.xml" rel="self" type="application/atom+xml" /><link href="https://blog.anotherplacein.com/" rel="alternate" type="text/html" hreflang="en" /><updated>2025-06-11T12:21:44+00:00</updated><id>https://blog.anotherplacein.com/feed.xml</id><title type="html">blank</title><subtitle>A simple, whitespace theme for academics. Based on [*folio](https://github.com/bogoli/-folio) design.
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="https://blog.anotherplacein.com/feed.xml" rel="self" type="application/atom+xml" /><link href="https://blog.anotherplacein.com/" rel="alternate" type="text/html" hreflang="en" /><updated>2025-06-11T12:54:12+00:00</updated><id>https://blog.anotherplacein.com/feed.xml</id><title type="html">blank</title><subtitle>A simple, whitespace theme for academics. Based on [*folio](https://github.com/bogoli/-folio) design.
 </subtitle><entry><title type="html">Soccer</title><link href="https://blog.anotherplacein.com/blog/2023/soccer/" rel="alternate" type="text/html" title="Soccer" /><published>2023-06-06T15:09:00+00:00</published><updated>2023-06-06T15:09:00+00:00</updated><id>https://blog.anotherplacein.com/blog/2023/soccer</id><content type="html" xml:base="https://blog.anotherplacein.com/blog/2023/soccer/"><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>Hack the Box is one of the cybersecurity upskilling platforms I use for professional development. Roughly once a week, Hack the Box releases a new vulnerable box for users to hack. Additionally, one active box is retired every week. Below is a walkthrough on compromising the recently retired box, “Soccer.”</p>
 
@@ -9,7 +9,7 @@
 
 <h2 id="port-scanning">Port Scanning</h2>
 
-<p><code class="language-plaintext highlighter-rouge">nmap</code> finds TCP ports 22, 80 and 9091 open.</p>
+<p><code class="language-plaintext highlighter-rouge">nmap</code> finds TCP ports 22, 80 and 9091 open. Test</p>
 
 <figure class="highlight"><pre><code class="language-console" data-lang="console"><span class="go">┌──(kali 🛸 box)-[~/workSpace/Boxes/Soccer]
 </span><span class="gp">└─$</span><span class="w"> </span>nmap 10.10.11.194                                                                                                                                             
