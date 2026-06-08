@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Terraform Provider Block You Forgot to Write – Will Lindsey</title>
+  <meta name="description" content="Why Terraform can appear to work without an explicit root provider block, and how hidden local AWS configuration can mask incomplete provider setup.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>💻</text></svg>">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="site-title">Will Lindsey</a>
+      <ul>
+        <li><a href="/">About</a></li>
+        <li><a href="/blog/">Blog</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <a href="/blog/" class="back-link">← Blog</a>
+    <div class="post-header">
+      <h1>The Terraform Provider Block You Forgot to Write</h1>
+      <div class="post-meta">
+        <time>Mar 15, 2026</time>
+        <span class="post-tags">
+          <span class="tag">terraform</span>
+          <span class="tag">aws</span>
+          <span class="tag">infrastructure-as-code</span>
+          <span class="tag">tutorials</span>
+        </span>
+      </div>
+    </div>
+
+    <article>
+      <p>You write some Terraform, run <code>terraform plan</code>, and everything looks good. You push it, your teammate pulls it, runs <code>terraform plan</code>, and gets an error. The code didn't change. The only difference is the machine.</p>
+
+      <p>The culprit could be a missing <code>provider</code> block in the root module for a provider that needs explicit configuration, like AWS. On your machine, the missing configuration may have been supplied implicitly by your local environment. On your teammate's machine, which had the audacity to be set up differently, the plan fails.</p>
+
+      <hr>
+
+      <h2>Two Blocks, Two Jobs</h2>
+
+      <h3><code>required_providers</code>: the shopping list</h3>
+
+<pre><code>terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"      # Download from HashiCorp's registry
+      version = "&gt;= 4.0, &lt; 6.0"      # Version 4.x or 5.x
+    }
+
+    # Third-party provider example
+    datadog = {
+      source  = "DataDog/datadog"    # Not from HashiCorp
+      version = "~&gt; 3.0"
+    }
+  }
+}</code></pre>
+
+      <p>Terraform uses this block during <code>terraform init</code> to determine which provider plugins to install, where to get them from, and which versions are acceptable.</p>
+
+      <p>It declares a dependency, but it does not configure how Terraform should connect to that provider. You will typically see <code>required_providers</code> in both root modules and child modules.</p>
+
+      <h3><code>provider</code>: the connection config</h3>
+
+<pre><code>provider "aws" {
+  region  = "us-east-1"              # Default region to deploy resources
+  profile = "production"             # Use this profile from ~/.aws/credentials
+
+  default_tags {
+    tags = {
+      ManagedBy   = "terraform"
+      Environment = "prod"
+    }
+  }
+}</code></pre>
+
+      <p>Terraform uses <code>provider</code> blocks when evaluating and executing plans. This is where you configure how Terraform talks to the provider: region, credentials, aliases, default tags, and other provider-specific settings.</p>
+
+      <p>This block is typically defined in the root module, and child modules usually use that configuration unless you explicitly pass an alternate provider configuration.</p>
+
+      <p><strong><code>required_providers</code></strong></p>
+      <ul>
+        <li>Declares the provider dependency</li>
+        <li>Used during <code>terraform init</code></li>
+        <li>Common in both root modules and child modules</li>
+        <li>Contains source addresses and version constraints</li>
+      </ul>
+
+      <p><strong><code>provider</code></strong></p>
+      <ul>
+        <li>Configures how Terraform uses the provider</li>
+        <li>Used during <code>terraform plan</code> and <code>terraform apply</code></li>
+        <li>Typically defined in the root module</li>
+        <li>Contains settings like region, credentials, aliases, and default tags</li>
+      </ul>
+
+      <p>One useful mental model is this:</p>
+      <ul>
+        <li><code>required_providers</code> says: <strong>I need AWS</strong></li>
+        <li><code>provider</code> says: <strong>Cool. Which AWS, exactly?</strong></li>
+      </ul>
+
+      <hr>
+
+      <h2>The Implicit Provider Trap</h2>
+
+      <p>Here's the problem.</p>
+
+      <p>When resources use a provider and you haven't defined a default <code>provider</code> block, Terraform may still try to use that provider's default configuration. For AWS, that often means looking to things like:</p>
+      <ul>
+        <li><code>AWS_REGION</code> or <code>AWS_DEFAULT_REGION</code></li>
+        <li><code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code></li>
+        <li><code>~/.aws/credentials</code></li>
+        <li><code>~/.aws/config</code></li>
+        <li>IAM instance profile or task role credentials</li>
+      </ul>
+
+      <p>If the environment has what it needs, the plan may succeed. If not, it fails.</p>
+
+      <p>That is what makes this bug sneaky. Your laptop may already have the missing pieces, so everything looks fine. Then someone else runs the same code in CI, on a teammate's machine, or in a fresh environment, and it breaks.</p>
+
+      <p>Somewhere in your shell profile may be a completely undocumented <code>AWS_REGION</code> holding the entire deployment together with chewing gum and optimism.</p>
+
+      <h3>A real example</h3>
+
+      <p>Take this root module that manages SSM Parameter Store values:</p>
+
+<pre><code># demo/main.tf
+
+terraform {
+  required_version = "&gt;= 1.0.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~&gt; 5.0"
+    }
+  }
+}
+
+module "app_config" {
+  source = "./modules/param_store"
+
+  parameters = {
+    "/myapp/database/host"     = "db.example.com"
+    "/myapp/database/port"     = "5432"
+    "/myapp/feature/dark_mode" = "enabled"
+  }
+
+  tags = {
+    Environment = "dev"
+    Project     = "demo"
+  }
+}</code></pre>
+
+      <p>Notice what's missing: there is no <code>provider "aws" {}</code> block in the root module.</p>
+
+      <p><code>terraform init</code> can still succeed because Terraform has enough information to install the AWS provider plugin. <code>terraform plan</code> may also succeed, but only because AWS configuration was found somewhere in your local environment, such as a region in your shell or a default profile in your AWS config files.</p>
+
+      <p>That does <strong>not</strong> make the configuration portable.</p>
+
+      <p>Run this same code in a clean environment, and you may see an error like this:</p>
+
+<pre><code>Planning failed. Terraform encountered an error while generating this plan.
+
+╷
+│ Error: Invalid provider configuration
+│
+│ Provider "registry.terraform.io/hashicorp/aws" requires explicit configuration. Add a provider block to the root module and configure the provider's required
+│ arguments as described in the provider documentation.
+│
+╵
+╷
+│ Error: invalid AWS Region:
+│
+│   with provider["registry.terraform.io/hashicorp/aws"],
+│   on &lt;empty&gt; line 0:
+│   (source code not available)
+│
+╵</code></pre>
+
+      <p>The fix is an explicit <code>provider</code> block in the root module:</p>
+
+<pre><code>provider "aws" {
+  region = "us-east-1"
+}</code></pre>
+
+      <p>Now the region is explicit and consistent across every machine that runs this code.</p>
+
+      <p>Without that explicit configuration, a local plan can give you a false sense of safety. CI is often where hidden local configuration stops covering for incomplete Terraform.</p>
+
+      <hr>
+
+      <h2>Why Reusable Child Modules Usually Shouldn't Configure Providers</h2>
+
+      <p>The child module (<code>modules/param_store/main.tf</code>) correctly declares what it needs but does not configure the AWS provider:</p>
+
+<pre><code># demo/modules/param_store/main.tf
+
+terraform {
+  required_version = "&gt;= 1.6.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~&gt; 5.0"
+    }
+  }
+}
+
+resource "aws_ssm_parameter" "this" {
+  for_each = var.parameters
+  name     = each.key
+  type     = "String"
+  value    = each.value
+  tags     = var.tags
+}</code></pre>
+
+      <p>No <code>provider "aws" {}</code> block. That is usually the right design for a reusable child module.</p>
+
+      <p>In most reusable-module patterns, child modules declare provider requirements and the root module owns provider configuration. That keeps credentials and environment-specific settings in one place, and it lets you pass different provider configurations to the same module when needed, such as:</p>
+      <ul>
+        <li>different AWS regions</li>
+        <li>different AWS accounts</li>
+        <li>aliased provider configurations</li>
+      </ul>
+
+      <p>Reusable modules should declare what they need. Root modules should make adult decisions.</p>
+
+      <hr>
+
+      <h2>Knowing What Provider Blocks You Need</h2>
+
+      <p>This problem can be hard to catch with automated tooling. In many common setups, static analysis will not flag it by default, and <code>terraform plan</code> only exposes it when the execution environment lacks the fallback settings your machine happens to have.</p>
+
+      <p>A very useful command here is:</p>
+
+<pre><code>terraform providers</code></pre>
+
+      <p>Run it when adding or consuming a new module, and Terraform will print the provider dependency tree across your configuration.</p>
+
+      <p>For configurations using only local modules, this often works without <code>terraform init</code>. For remote modules, initialize first.</p>
+
+      <p>Example output:</p>
+
+<pre><code>Providers required by configuration:
+.
+├── provider[registry.terraform.io/hashicorp/aws]
+└── module.app_config
+    └── provider[registry.terraform.io/hashicorp/aws]</code></pre>
+
+      <p>Use that output as a checklist against the <code>provider {}</code> blocks in your root module.</p>
+
+      <p>If a provider shows up in the dependency tree, ask yourself:</p>
+      <ul>
+        <li>Does the root module intentionally configure this provider?</li>
+        <li>Is this configuration explicit, or is it only working because of my local environment?</li>
+        <li>Would this still work for a teammate or in CI?</li>
+      </ul>
+
+      <p>If your Terraform depends on undocumented shell state, that is not convenience. That is suspense.</p>
+
+      <hr>
+
+      <h2>Final Takeaway</h2>
+
+      <p><code>required_providers</code> and <code>provider</code> are related, but they solve different problems.</p>
+      <ul>
+        <li><code>required_providers</code> declares the dependency</li>
+        <li><code>provider</code> configures how Terraform uses it</li>
+      </ul>
+
+      <p>If you are writing a reusable child module, declare the providers you require. If you are writing the root module, be explicit about provider configuration instead of relying on defaults from your machine.</p>
+
+      <p>Be explicit in root modules. Your future teammates deserve better than inheriting your laptop's personality.</p>
+    </article>
+  </main>
+
+  <footer>
+    &copy; 2026 Will Lindsey
+  </footer>
+</body>
+</html>

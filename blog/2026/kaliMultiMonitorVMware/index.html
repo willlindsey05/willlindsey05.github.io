@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A Workaround for Kali's Pre-Built VMware Image Multi-Monitor Issues – Will Lindsey</title>
+  <meta name="description" content="A workaround for multi-monitor display issues in Kali Linux on VMware Workstation.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>💻</text></svg>">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="site-title">Will Lindsey</a>
+      <ul>
+        <li><a href="/">About</a></li>
+        <li><a href="/blog/">Blog</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <a href="/blog/" class="back-link">← Blog</a>
+    <div class="post-header">
+      <h1>A Workaround for Kali's Pre-Built VMware Image Multi-Monitor Issues</h1>
+      <div class="post-meta">
+        <time>Mar 7, 2026</time>
+        <span class="post-tags">
+          <span class="tag">kali</span>
+          <span class="tag">vmware</span>
+          <span class="tag">linux</span>
+          <span class="tag">tutorials</span>
+        </span>
+      </div>
+    </div>
+
+    <article>
+      <p>If you've recently tried using multiple monitors with Kali's pre-built VMware virtual machine image, you may have run into some annoying display behavior: mirrored displays, offset mouse clicks, and a guest that refuses to scale properly after exiting fullscreen. On my setup, this showed up with <code>kali-linux-2025.4-vmware-amd64</code> on VMware Workstation 25.0.0.</p>
+
+      <p>This is a workaround, not a polished upstream fix. It solved my problem, which means it still has every right to invent a few brand-new ones for somebody else. Use at your own risk.</p>
+
+      <img src="/assets/img/kaliMultiMonitor/thisIsFine.png" alt="This is fine" class="post-img">
+
+      <h2>The Problem</h2>
+
+      <p>VMware Workstation supports multiple monitors for guest VMs, but Kali Linux's default display helper, <code>xautoresize</code>, appears to work best for simple auto-resize behavior. It listens for X11 RandR events and runs <code>xrandr -s 0</code> to switch to screen size index 0 (the first or preferred mode).</p>
+
+      <p>That works fine for basic resizing, but in my testing it fought with extended multi-monitor layouts.</p>
+
+      <p>When I enabled a second monitor, I saw three problems:</p>
+      <ul>
+        <li><strong>Display mirrored instead of extended</strong> – My extended layout kept getting reset. Based on how <code>xautoresize</code> behaves, it appears to be reapplying a preferred mode instead of preserving the multi-monitor layout I wanted.</li>
+        <li><strong>Mouse clicks were offset</strong> – Click targets drifted away from the visible pointer position as I moved across the screen.</li>
+        <li><strong>No auto-scaling when exiting fullscreen</strong> – The display stayed at the fullscreen resolution, leaving scrollbars behind. Current public bug reports around Kali/Linux guests on VMware Workstation 25.x suggest that resize or EDID events may not be delivered reliably in this configuration, so the guest does not always update its display modes correctly.</li>
+      </ul>
+
+      <p>On my test VM, simply disabling <code>xautoresize</code> restored monitor extension, but I lost the auto-resize behavior I actually wanted.</p>
+
+      <h2>The Solution</h2>
+
+      <p>After spending longer than I'd like to admit arguing with <code>xrandr</code>, I turned to Claude to help research and create <a href="https://github.com/willlindsey05/vmware-kali-multimonitor-fix" target="_blank" rel="noopener noreferrer">vmware-autolayout</a>, a workaround that handles both scenarios.</p>
+
+      <p><strong>For multiple monitors:</strong> It extends the desktop automatically, positioning displays side-by-side by applying the full <code>xrandr</code> layout in a single command.</p>
+
+      <p><strong>For single monitor:</strong> It auto-resizes to fit the VMware window, replicating the useful behavior of <code>xautoresize</code>.</p>
+
+      <p>The script works in three parts:</p>
+      <ol>
+        <li><strong>One-time setup</strong> – Kills <code>xautoresize</code>, disables its autostart, enables <code>resolutionKMS</code> in VMware Tools config, and applies the extended layout immediately.</li>
+        <li><strong>Background watcher</strong> – Uses <code>xev</code> to listen for X11 RandR screen change events. When displays change (monitors added or removed, fullscreen toggled, resolution changed), it automatically applies the correct layout.</li>
+        <li><strong>Persistence</strong> – Installs an XDG autostart entry so the watcher runs on every login. No manual intervention needed after initial setup.</li>
+      </ol>
+
+      <p>The watcher is event-driven rather than polling, so it uses minimal resources and responds quickly to changes.</p>
+
+      <h2>Constraints and Limitations</h2>
+      <ul>
+        <li><strong>X11 only</strong> – The script relies on <code>xrandr</code> and <code>xev</code>, which are X11 tools. It won't work on Wayland sessions.</li>
+        <li><strong>VMware only</strong> – The script uses <code>systemd-detect-virt</code> to confirm it is running in a VMware virtual machine and exits otherwise.</li>
+        <li><strong>Horizontal layout only</strong> – Displays are arranged left-to-right. Vertical stacking or custom arrangements aren't supported.</li>
+        <li><strong>Two monitors tested</strong> – I only tested this with dual-monitor setups.</li>
+        <li><strong>XFCE-aware</strong> – When running under XFCE, the script saves display settings into XFCE's display configuration using <code>xfconf-query</code>. Other desktop environments may still work, but they do not get that XFCE-specific persistence step.</li>
+        <li><strong>Requires open-vm-tools</strong> – The VMware Tools service must be installed and running for display hotplug behavior to work as expected. This is pre-installed on the official Kali VMware images.</li>
+      </ul>
+
+      <h2>Tested Environment</h2>
+      <p>This workaround has only been tested in the following environment. I have <strong>not</strong> validated it on other Kali versions, other Linux distributions, other VMware products, Linux hosts, or different desktop environments beyond what is listed here.</p>
+      <ul>
+        <li><strong>Windows host</strong></li>
+        <li><strong>Kali guest:</strong> <code>kali-linux-2025.4-vmware-amd64</code> (pre-built VM image)</li>
+        <li><strong>VMware Workstation:</strong> 25.0.0</li>
+        <li>Pre-built Kali VM upgraded to latest hardware version in VMware (<code>VM -&gt; Manage -&gt; Upgrade Virtual Machine</code>)</li>
+      </ul>
+
+      <h2>Getting Started</h2>
+
+      <p>Fair warning: this script worked on my machine. Yours might spontaneously combust, summon a mass of confused xrandr processes, or simply do nothing at all. Use at your own risk, keep backups, and maybe have a fire extinguisher handy.</p>
+
+<pre><code>git clone https://github.com/willlindsey05/vmware-kali-multimonitor-fix.git
+cd vmware-kali-multimonitor-fix
+chmod +x vmware-autolayout.sh
+./vmware-autolayout.sh</code></pre>
+
+      <p>The script prompts for <code>sudo</code> once, then handles everything automatically.</p>
+
+      <h3>What to Expect</h3>
+
+      <p>If everything goes according to plan:</p>
+      <ul>
+        <li><strong>Multiple monitors</strong> should automatically extend side-by-side instead of mirroring</li>
+        <li><strong>Single monitor</strong> should auto-scale when you exit fullscreen or resize the VMware window</li>
+        <li><strong>Logs</strong> are written to <code>/tmp/vmware-autolayout.log</code> if you need to troubleshoot</li>
+      </ul>
+
+      <p>If you're running Kali in VMware with multiple monitors, this should save you from manually rebuilding the display layout every time something changes.</p>
+
+      <h2>Uninstalling</h2>
+
+      <p>Changed your mind? Want to return to the default behavior and pretend this never happened? No hard feelings.</p>
+
+<pre><code>./vmware-autolayout.sh --uninstall</code></pre>
+
+      <p>This removes the autostart entry and restores <code>xautoresize</code> to its former glory.</p>
+    </article>
+  </main>
+
+  <footer>
+    &copy; 2026 Will Lindsey
+  </footer>
+</body>
+</html>

